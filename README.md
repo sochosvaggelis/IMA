@@ -7,6 +7,8 @@ Vite + React 19 + TypeScript + Tailwind v4, bilingual EL/EN.
 > project cases and statistics are invented. Replace them before this goes
 > anywhere near a real visitor — see "Editing content" below.
 
+**Live:** https://sochosvaggelis.github.io/IMA/
+
 ## Running
 
 ```bash
@@ -15,6 +17,26 @@ npm run dev      # http://localhost:5173
 npm run build    # type-check + production build to dist/
 npm run lint
 ```
+
+## Deployment
+
+Every push to `main` builds and publishes to GitHub Pages via
+`.github/workflows/deploy.yml`. A type error fails the deploy rather than
+shipping a broken site.
+
+Pages serves the site from the `/IMA/` subpath, which costs two things:
+
+- `vite.config.ts` sets `base: '/IMA/'` for builds (dev stays at `/`), and
+  `App.tsx` passes `import.meta.env.BASE_URL` to the router's `basename`, so
+  one build works in both places. Never hardcode `/IMA/` anywhere else.
+- Pages has no rewrite rules, so the workflow copies `index.html` to
+  `404.html`. Deep links land on the 404 page, the app boots, and React Router
+  resolves the URL. It works, but those responses carry a 404 status — worth
+  knowing if search ranking ever matters.
+
+Both of those disappear the day this moves to a real domain: set `base` back
+to `'/'` and drop the `404.html` step in favour of a proper
+`/* -> /index.html` rewrite.
 
 ## Editing content
 
@@ -70,6 +92,6 @@ layout does not care what renders inside it.
   service, and only then is the "we reply within 2 hours" copy honest.
 - Replace all placeholder content (see above), especially the certifications
   page — claiming class approvals you do not hold is a real problem.
-- SPA routing needs a host rewrite (`/* -> /index.html`) or deep links 404.
+- Deep links work, but return a 404 status — see "Deployment" above.
 - No analytics, no sitemap, no `robots.txt`.
 - Fonts load from Google Fonts; self-host them if that matters to you.

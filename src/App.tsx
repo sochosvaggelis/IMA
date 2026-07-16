@@ -14,7 +14,9 @@ import NotFound from '@/pages/NotFound'
 export default function App() {
   return (
     <LanguageProvider>
-      <BrowserRouter>
+      {/* Router paths are relative to Vite's base, so the same build works
+          both at the root and under the /IMA/ subpath GitHub Pages serves. */}
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route element={<Layout />}>
             <Route path={ROUTES.home} element={<Home />} />
