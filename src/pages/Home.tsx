@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useI18n } from '@/i18n/useI18n'
 import { ROUTES } from '@/routes'
 import { telHref } from '@/lib/contact'
-import { HeroSeaScene } from '@/components/hero/HeroSeaScene'
+import { VesselScene } from '@/components/hero/VesselScene'
 import { Container } from '@/components/ui/Container'
 import { Section, SectionHeading } from '@/components/ui/Section'
 import { ButtonLink } from '@/components/ui/Button'
@@ -19,19 +19,8 @@ function Hero() {
   const { t } = useI18n()
 
   return (
-    <section className="relative overflow-hidden pt-16 lg:pt-18">
-      {/* The scene keeps its exact 12:7 drawing ratio so the whole vessel is
-          always in frame — nothing overlays it, the text lives below. */}
-      <div className="relative mx-auto aspect-[12/7] max-h-[62vh] w-full">
-        <HeroSeaScene label={t.hero.sceneLabel} />
-        {/* Blend the bottom of the scene into the page background */}
-        <div
-          className="from-navy-950 absolute inset-x-0 bottom-0 h-16 bg-linear-to-t to-transparent sm:h-24"
-          aria-hidden="true"
-        />
-      </div>
-
-      <Container size="wide" className="relative pb-14 lg:pb-20">
+    <>
+      <Container size="wide" className="relative pt-14 pb-14 lg:pb-20">
         <div className="mx-auto max-w-3xl text-center">
           <p className="eyebrow mb-5">{t.hero.eyebrow}</p>
           <h1 className="text-display font-semibold text-balance text-white">
@@ -69,7 +58,7 @@ function Hero() {
           ))}
         </dl>
       </Container>
-    </section>
+    </>
   )
 }
 
@@ -224,15 +213,31 @@ function CtaBand() {
   )
 }
 
+/**
+ * TEMPORARY: the page copy is parked while the scroll sweep is being dialled
+ * in — the sections have opaque backgrounds and would paint straight over the
+ * vessel. Nothing is deleted; flip this to true to bring the page back.
+ */
+const SHOW_PAGE_CONTENT: boolean = false
+
 export default function Home() {
+  const { t } = useI18n()
+
   return (
     <>
-      <Hero />
-      <Problem />
-      <ServicesTeaser />
-      <CapabilitiesTeaser />
-      <ProjectsTeaser />
-      <CtaBand />
+      {/* Fixed layer + its own scroll runway; renders behind everything. */}
+      <VesselScene label={t.hero.sceneLabel} />
+
+      {SHOW_PAGE_CONTENT && (
+        <>
+          <Hero />
+          <Problem />
+          <ServicesTeaser />
+          <CapabilitiesTeaser />
+          <ProjectsTeaser />
+          <CtaBand />
+        </>
+      )}
     </>
   )
 }

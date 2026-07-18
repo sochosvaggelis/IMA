@@ -22,3 +22,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Source 3D assets — ~138 MB of FBX and textures (three FBX files at 46/46/38
+# MB). The app never loads these: public/models/vessel.glb is the built
+# artifact, and scripts/convert-vessel.py regenerates it from this source.
+# Keep the source archived outside the repo — once large binaries are in git
+# history they are extremely awkward to remove.
+bulkCarrier/
+
+# Local agent / editor state
+.claude/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
