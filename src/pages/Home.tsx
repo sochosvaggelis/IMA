@@ -214,6 +214,52 @@ function CtaBand() {
 }
 
 /**
+ * The company statement, shown on the first scroll stop before any system.
+ *
+ * Lives here rather than inside VesselScene so the copy stays with the page
+ * and its dictionary — the scene stays a scene, and this remains translatable
+ * along with everything else.
+ */
+function HeroIntro() {
+  const { t } = useI18n()
+
+  return (
+    // Height is the binding constraint, not width: this sits in a fixed
+    // overlay, so anything taller than the viewport is simply lost. The cap
+    // leaves 4rem for the header that a centred panel would otherwise slide
+    // under, and the type steps down rather than the panel growing.
+    <div className="border-navy-800 bg-navy-950/90 max-h-[62dvh] overflow-y-auto rounded-lg border p-5 backdrop-blur-sm lg:max-h-[calc(100dvh-9rem)] lg:p-7">
+      <p className="eyebrow mb-3">{t.hero.eyebrow}</p>
+      <h1 className="text-h2 font-semibold text-balance text-white">
+        {t.hero.title} <span className="text-signal-400 block">{t.hero.titleAccent}</span>
+      </h1>
+      <p className="text-navy-300 mt-4 text-sm leading-relaxed">{t.hero.subtitle}</p>
+
+      <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
+        <ButtonLink to={ROUTES.contact} variant="alert">
+          {t.hero.ctaPrimary}
+        </ButtonLink>
+        <ButtonLink to={ROUTES.services} variant="secondary">
+          {t.hero.ctaSecondary}
+          <ArrowRight />
+        </ButtonLink>
+      </div>
+
+      {/* Stats are the least load-bearing part, so they are the first to go
+          on short screens where the panel would otherwise overflow. */}
+      <dl className="border-navy-800 mt-6 hidden grid-cols-2 gap-x-5 gap-y-3 border-t pt-5 [@media(min-height:820px)]:grid">
+        {t.hero.stats.map((stat) => (
+          <div key={stat.label} className="flex flex-col-reverse">
+            <dt className="text-navy-400 mt-0.5 text-xs">{stat.label}</dt>
+            <dd className="text-signal-400 font-mono text-base font-semibold">{stat.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  )
+}
+
+/**
  * TEMPORARY: the page copy is parked while the scroll sweep is being dialled
  * in — the sections have opaque backgrounds and would paint straight over the
  * vessel. Nothing is deleted; flip this to true to bring the page back.
@@ -226,7 +272,7 @@ export default function Home() {
   return (
     <>
       {/* Fixed layer + its own scroll runway; renders behind everything. */}
-      <VesselScene label={t.hero.sceneLabel} />
+      <VesselScene label={t.hero.sceneLabel} intro={<HeroIntro />} />
 
       {SHOW_PAGE_CONTENT && (
         <>

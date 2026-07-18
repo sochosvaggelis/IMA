@@ -1,8 +1,26 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
+import { E2E } from '@/lib/e2e'
 import { HeroSeaScene } from './HeroSeaScene'
+import {
+  SYSTEMS,
+  dominantSystem,
+  focusTarget,
+  introActivity,
+  systemActivity,
+  type SystemSpec,
+} from './systems'
 
 /**
  * Blueprint hero — scroll stage.
@@ -17,9 +35,11 @@ import { HeroSeaScene } from './HeroSeaScene'
  * whole way rather than rising over it. The closing stop mirrors the opening
  * across the beam, so the sweep reads as a single circling move.
  *
- * Underneath those three stops the look-at also tracks along the hull (see
- * ORBIT_TRAVEL and LOOK_AFT): amidships at the start, the after end at the
- * profile, then forward toward the bow as it closes.
+ * Underneath those three stops the look-at tracks the SYSTEM being annotated
+ * (see focusTarget in ./systems): it starts amidships, then walks anchor to
+ * anchor through the nine systems, settling on each one exactly where that
+ * system's marker and diagram are fully shown. The orbit gives the movement,
+ * the systems decide where it points.
  *
  * Two independent motions are in play, and they are deliberately separate:
  * the CAMERA is driven by scroll position, while the VESSEL is always under
@@ -133,38 +153,10 @@ const MIN_DISTANCE = 110
  */
 const PROFILE_DISTANCE_SCALE = 0.8
 
-/**
- * Longitudinal travel. The whole camera rig slides from aft to forward along
- * the hull across the scroll, so the vantage point drifts bow-ward while the
- * three orbit stops play out on top of it.
- *
- * Applied to the camera position AND its look-at target equally. That is what
- * makes it a translation rather than a rotation: the view direction is
- * (target - position), so shifting both leaves orientation untouched and the
- * plan view stays axis-aligned. Moving the target alone would yaw the camera
- * and skew every view — the same trap the frustum shift avoids.
- *
- * The travel starts at ZERO rather than aft of the vessel, so the opening
- * frame is composed exactly as it was before this existed. From there it runs
- * AFT into the profile stop, then forward again for the plan:
- *
- *     p = 0.0   amidships   (opening framing, untouched)
- *     p = 0.5   the stern   (profile view centres on the after end)
- *     p = 1.0   forward     (plan view drifts toward the bow)
- *
- * Raise ORBIT_TRAVEL for a longer push toward the bow — past ~50 the camera is
- * looking beyond the stem.
- */
-const ORBIT_TRAVEL = 32
-
-/** How far aft the profile stop centres. The hull's half-length is 50, so 35
-    sits well inside the after end rather than off the transom. */
-const LOOK_AFT = 35
-
-/** Which way the stern lies along X, derived from the opening azimuth so the
-    two can never disagree: at p = 0 the camera sits astern, so the sign of its
-    X position IS the stern direction. Flip AZIMUTH_STERN and this follows. */
-const STERN_SIGN = Math.sign(Math.sin((AZIMUTH_STERN * Math.PI) / 180))
+/* Longitudinal travel used to be a fixed choreography here (amidships → stern
+   → bow). It is now derived from the systems themselves — see focusTarget in
+   ./systems, which walks the camera from anchor to anchor so it settles on
+   whichever system is currently annotated. */
 
 /** Fraction of viewport width the image is panned right, which moves the
     vessel that much left. 0.22 puts its centre at ~28% from the left edge. */
@@ -174,10 +166,40 @@ const LEFT_SHIFT = 0.22
     vessel up the frame. Raise to lift further, negative to drop it. */
 const UP_SHIFT = 0.08
 
-/** Viewport heights of scroll the full sweep is spread over. The vessel layer
-    is fixed, so it contributes no height of its own — this spacer is what
-    creates the scroll distance the sweep is mapped onto. */
-const SWEEP_SCROLL_VH = 400
+/**
+ * Snap stops: an opening frame, one per system, and a closing frame.
+ *
+ * The vessel layer is fixed and contributes no height, so these panels are
+ * what create the scroll distance — one viewport each, with scroll-snap-align
+ * on every one so the page always comes to rest on a stop and never between
+ * two systems.
+ *
+ * ---------------------------------------------------------------------------
+ * THE COUNT IS NOT ARBITRARY. With N stops the scrollable travel is (N-1)
+ * viewports, so a stop at index i sits at progress i/(N-1). At N = 11 that
+ * gives 0.0, 0.1, 0.2 … 1.0 — which is exactly where the nine systems are
+ * placed (their `at` values run 0.1 … 0.9, see ./systems).
+ *
+ * Change the number of systems and this must change with it, or the snap
+ * points drift off the systems and every stop lands slightly between two.
+ * ---------------------------------------------------------------------------
+ */
+const SNAP_STOPS = SYSTEMS.length + 2
+
+/**
+ * How fast the scene catches up to the scroll position, per second.
+ *
+ * Mandatory snapping moves the scroll position in hard steps — a wheel notch
+ * that lands mid-panel gets corrected in one jump, and following that raw
+ * value made the camera lurch. The scene therefore chases the scroll position
+ * rather than tracking it exactly: it is always heading for the right place
+ * and arrives a fraction of a second later, which turns the correction into a
+ * glide without changing where anything ends up.
+ *
+ * Higher is tighter and closer to the raw scroll; lower is floatier. At 6 the
+ * scene covers ~95% of a snap correction in half a second.
+ */
+const SCROLL_DAMPING = 6
 
 /** On-screen scroll readout for tuning the sweep. Flip to false to hide it —
     this is a development aid and should not ship. */
@@ -303,11 +325,12 @@ const COLOR = {
   navy950: '#04101e',
   navy900: '#0a1c2d',
   signal500: '#00b4d5',
+  signal300: '#7ae4f3',
 } as const
 
 type Progress = { current: number }
 
-function Vessel({ still }: { still: boolean }) {
+function Vessel({ still, children }: { still: boolean; children?: ReactNode }) {
   const { scene } = useGLTF(MODEL_URL, DRACO_PATH)
   const motion = useRef<THREE.Group>(null)
 
@@ -337,6 +360,17 @@ function Vessel({ still }: { still: boolean }) {
   // cache, so nothing else will collect it.
   useEffect(() => () => edges?.dispose(), [edges])
 
+  // Readiness beacon for the tests: the GLB load and edge extraction are the
+  // slow, async part of first paint, and nothing else in the DOM says when
+  // they are done. Screenshots taken before this lands show an empty sea.
+  useEffect(() => {
+    if (!edges) return
+    document.documentElement.dataset.vesselReady = '1'
+    return () => {
+      delete document.documentElement.dataset.vesselReady
+    }
+  }, [edges])
+
   useFrame(({ clock }) => {
     const g = motion.current
     if (!g) return
@@ -358,13 +392,17 @@ function Vessel({ still }: { still: boolean }) {
     g.position.y = MOTION.heave * Math.sin((TAU * t) / MOTION.heavePeriod + 2.3)
   })
 
-  if (!geometry) return null
+  if (!geometry || !edges) return null
 
   return (
     // Outer group carries the seakeeping; the inner one centres the model, so
     // the vessel rolls and pitches about amidships rather than about the keel
     // at the stern — which would swing the bow through a huge arc.
     <group ref={motion}>
+      {/* Children ride the seakeeping and sit in CENTRED space (the inner
+          group below is what shifts model space to centred), so a system
+          anchor stays pinned to its part of the ship as she rolls. */}
+      {children}
       <group position={[-centre.x, -centre.y, -centre.z]}>
         {/* Opaque fill, pushed fractionally back so it occludes the far side of
             the hull without z-fighting its own edges along every crease. */}
@@ -379,6 +417,119 @@ function Vessel({ still }: { still: boolean }) {
         <lineSegments geometry={edges}>
           <lineBasicMaterial color={COLOR.signal500} transparent opacity={0.85} />
         </lineSegments>
+      </group>
+    </group>
+  )
+}
+
+/** Ring in the XY plane; billboarded to the camera so it always reads round. */
+function ringGeometry(radius: number): THREE.BufferGeometry {
+  const points: THREE.Vector3[] = []
+  for (let i = 0; i <= 64; i++) {
+    const a = (i / 64) * TAU
+    points.push(new THREE.Vector3(Math.cos(a) * radius, Math.sin(a) * radius, 0))
+  }
+  return new THREE.BufferGeometry().setFromPoints(points)
+}
+
+/**
+ * A system marker on the hull. Lives inside the vessel's motion group, so it
+ * rolls with her, and each frame it projects its own world position to screen
+ * coordinates and drives a DOM label there — the text stays real DOM (crisp at
+ * any density, selectable, translatable) rather than drawn into the canvas.
+ */
+function SystemNode({
+  spec,
+  progress,
+  labels,
+  index,
+}: {
+  spec: SystemSpec
+  progress: Progress
+  labels: RefObject<Array<HTMLDivElement | null>>
+  index: number
+}) {
+  const group = useRef<THREE.Group>(null)
+  const pulse = useRef<THREE.Group>(null)
+  const innerMat = useRef<THREE.LineBasicMaterial>(null)
+  const outerMat = useRef<THREE.LineBasicMaterial>(null)
+
+  const camera = useThree((s) => s.camera)
+  const size = useThree((s) => s.size)
+
+  const inner = useMemo(() => ringGeometry(1.1), [])
+  const outer = useMemo(() => ringGeometry(1.1), [])
+  const world = useMemo(() => new THREE.Vector3(), [])
+
+  useEffect(
+    () => () => {
+      inner.dispose()
+      outer.dispose()
+    },
+    [inner, outer],
+  )
+
+  useFrame(({ clock }) => {
+    const g = group.current
+    if (!g) return
+
+    const active = systemActivity(progress.current, spec.at)
+    g.visible = active > 0.001
+
+    // Face the camera, so the rings never foreshorten into ellipses.
+    g.quaternion.copy(camera.quaternion)
+
+    // Expanding ring, restarting every 2.4s. Pinned mid-pulse under test so
+    // the ring is both visible in the baselines and identical on every run.
+    const phase = E2E ? 0.35 : (clock.getElapsedTime() % 2.4) / 2.4
+    if (pulse.current) pulse.current.scale.setScalar(1 + phase * 2.6)
+    if (outerMat.current) outerMat.current.opacity = active * (1 - phase) * 0.7
+    if (innerMat.current) innerMat.current.opacity = active * 0.95
+
+    // Project to screen and drive the DOM label. Written straight to style —
+    // this runs every frame and must never go through React state.
+    const label = labels.current[index]
+    if (label) {
+      g.getWorldPosition(world).project(camera)
+      // z > 1 means the anchor is behind the camera, where the projection
+      // flips and the label would appear mirrored on the wrong side.
+      const behind = world.z > 1
+      label.style.transform = `translate3d(${(world.x * 0.5 + 0.5) * size.width}px, ${
+        (-world.y * 0.5 + 0.5) * size.height
+      }px, 0)`
+      label.style.opacity = String(behind ? 0 : active)
+    }
+  })
+
+  return (
+    <group ref={group} position={spec.anchor}>
+      {/* depthTest off, so a node reads through the hull.
+          Most systems sit INSIDE the ship — the engine room, the switchboard,
+          the accommodation — and with depth testing on, the opaque fill hides
+          them completely; only the masthead one ever showed. Since the marker
+          is an annotation rather than an object in the scene, it should behave
+          like one and always sit on top.
+          renderOrder forces it to draw after the hull; with depthTest off,
+          draw order is the only thing left deciding what wins. */}
+      <lineLoop geometry={inner} renderOrder={10}>
+        <lineBasicMaterial
+          ref={innerMat}
+          color={COLOR.signal300}
+          transparent
+          depthTest={false}
+          depthWrite={false}
+        />
+      </lineLoop>
+      <group ref={pulse}>
+        <lineLoop geometry={outer} renderOrder={10}>
+          <lineBasicMaterial
+            ref={outerMat}
+            color={COLOR.signal300}
+            transparent
+            depthTest={false}
+            depthWrite={false}
+          />
+        </lineLoop>
       </group>
     </group>
   )
@@ -495,9 +646,72 @@ function Waterplane({ still }: { still: boolean }) {
  * scrolling never triggers a React render — the whole sweep is one matrix
  * update per frame.
  */
+/**
+ * Eases the scene's progress toward the raw scroll position, and drives
+ * everything that depends on it.
+ *
+ * Mounted FIRST inside the canvas so its useFrame runs before the camera and
+ * the markers — R3F runs frame callbacks of equal priority in mount order, so
+ * the rest of the scene reads a value already current for this frame.
+ *
+ * The panel opacity and the active-system swap live here rather than in the
+ * scroll handler so they follow the SAME eased value the camera does. Driven
+ * from the raw scroll they would change a beat ahead of the movement, which
+ * reads as the diagram and the ship disagreeing with each other.
+ */
+function ProgressDriver({
+  target,
+  progress,
+  panelEl,
+  introEl,
+  readoutEl,
+  onSystemChange,
+}: {
+  target: Progress
+  progress: Progress
+  panelEl: RefObject<HTMLDivElement | null>
+  introEl: RefObject<HTMLDivElement | null>
+  readoutEl: RefObject<HTMLDivElement | null>
+  onSystemChange: (index: number) => void
+}) {
+  useFrame((_, delta) => {
+    // Frame-rate independent exponential smoothing. A plain `+= diff * 0.1`
+    // eases at different speeds on a 60Hz and a 144Hz display; this does not.
+    // delta is clamped so a backgrounded tab does not resume with one huge
+    // step that snaps the whole sweep across in a single frame.
+    // Under test the easing is bypassed entirely: the tests scroll straight
+    // to a stop and screenshot, and any residual glide would land each run on
+    // a fractionally different frame.
+    const k = E2E ? 1 : 1 - Math.exp(-SCROLL_DAMPING * Math.min(delta, 0.1))
+    progress.current += (target.current - progress.current) * k
+
+    const p = progress.current
+    const { index, activity } = dominantSystem(p)
+
+    if (panelEl.current) panelEl.current.style.opacity = String(activity)
+    if (readoutEl.current) readoutEl.current.textContent = `${(p * 100).toFixed(1)}%`
+
+    if (introEl.current) {
+      const intro = introActivity(p)
+      introEl.current.style.opacity = String(intro)
+      // A faded overlay still swallows clicks, so the intro's buttons would
+      // keep intercepting them over the whole page. Only accept input while
+      // it is actually the thing on screen.
+      introEl.current.style.pointerEvents = intro > 0.5 ? 'auto' : 'none'
+    }
+
+    onSystemChange(index)
+  })
+
+  return null
+}
+
 function CameraRig({ progress }: { progress: Progress }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera
   const size = useThree((s) => s.size)
+
+  // Reused every frame; focusTarget writes into it rather than allocating.
+  const focus = useMemo(() => new THREE.Vector3(), [])
 
   useEffect(() => {
     camera.fov = FOV
@@ -555,26 +769,45 @@ function CameraRig({ progress }: { progress: Progress }) {
     const closeIn = THREE.MathUtils.lerp(1, PROFILE_DISTANCE_SCALE, Math.sin(Math.PI * p))
     const distance = Math.max(fit, MIN_DISTANCE) * closeIn
 
-    // Amidships -> stern -> forward, reusing the same two eased halves as the
-    // orbit so the look-at arrives at the after end exactly as the profile
-    // view settles, then releases forward into the climb.
-    const travel = THREE.MathUtils.lerp(
-      THREE.MathUtils.lerp(0, STERN_SIGN * LOOK_AFT, toProfile),
-      -STERN_SIGN * ORBIT_TRAVEL,
-      toBow,
-    )
+    // The rig now tracks the system being annotated, rather than following a
+    // fixed choreography: the look-at walks amidships -> 01 -> 02 -> ... -> 09,
+    // settling on each anchor exactly where that system's node is fully lit.
+    const target = focusTarget(p, focus)
 
     const horizontal = distance * Math.cos(elevation)
+    // Target added to BOTH position and look-at: that translates the whole rig
+    // without rotating it, so the orbit angles stay true. Offsetting only the
+    // look-at would yaw the camera and skew every view.
     camera.position.set(
-      travel + horizontal * Math.sin(azimuth),
-      distance * Math.sin(elevation),
-      horizontal * Math.cos(azimuth),
+      target.x + horizontal * Math.sin(azimuth),
+      target.y + distance * Math.sin(elevation),
+      target.z + horizontal * Math.cos(azimuth),
     )
-    // Same travel on the target: translates the rig, does not rotate it.
-    camera.lookAt(travel, 0, 0)
+    camera.lookAt(target)
   })
 
   return null
+}
+
+function SystemPanel({ spec }: { spec: SystemSpec }) {
+  const { Diagram } = spec
+  return (
+    // max-h keeps the panel inside the viewport whatever its content: 4rem of
+    // that budget is the fixed header, which a vertically-centred panel would
+    // otherwise slide under on a short screen.
+    <div className="border-navy-800 bg-navy-950/90 max-h-[52dvh] overflow-y-auto rounded-lg border p-4 backdrop-blur-sm lg:max-h-[calc(100dvh-9rem)] lg:p-6">
+      <p className="text-signal-500/80 font-mono text-[10px] tracking-[0.2em]">
+        {spec.index} / {String(SYSTEMS.length).padStart(2, '0')}
+      </p>
+      <h2 className="mt-1.5 text-base font-semibold text-white lg:text-lg">{spec.title}</h2>
+      <div className="mt-3">
+        <Diagram />
+      </div>
+      {/* The blurb is the first thing to go when space is tight — the diagram
+          carries more meaning per pixel than the prose does. */}
+      <p className="text-navy-300 mt-3 hidden text-xs leading-relaxed sm:block">{spec.blurb}</p>
+    </div>
+  )
 }
 
 function hasWebGL(): boolean {
@@ -588,42 +821,84 @@ function hasWebGL(): boolean {
   }
 }
 
-export function VesselScene({ label }: { label: string }) {
+export function VesselScene({ label, intro }: { label: string; intro?: ReactNode }) {
+  /** Where the scroll actually is — set by the scroll handler, in hard steps. */
+  const scrollTarget = useRef(0)
+  /** Where the scene is — eased toward the target by ProgressDriver. */
   const progress = useRef(0)
+  const stops = useRef<HTMLDivElement>(null)
   const readout = useRef<HTMLDivElement>(null)
+  const panelEl = useRef<HTMLDivElement>(null)
+  const introEl = useRef<HTMLDivElement>(null)
+  const labelEls = useRef<Array<HTMLDivElement | null>>([])
+
+  // Which system's panel is mounted. This is the one thing here that DOES go
+  // through React state — but it changes nine times across the whole scroll,
+  // not per frame, so the re-render is free. Opacity is still written to the
+  // DOM directly below, so the fade itself never re-renders anything.
+  const [activeSystem, setActiveSystem] = useState(-1)
+  const activeRef = useRef(-1)
+
+  // Called every frame; only reaches React when the system actually changes.
+  const handleSystemChange = useCallback((index: number) => {
+    if (index === activeRef.current) return
+    activeRef.current = index
+    setActiveSystem(index)
+  }, [])
 
   // Resolved after mount — touches APIs that only exist in a browser.
   const [webgl, setWebgl] = useState(false)
-  const [still, setStill] = useState(false)
+  const [still, setStill] = useState(E2E)
+
+  // Snapping is applied to the document element here rather than in index.css
+  // so it belongs to this scene: the rest of the site scrolls normally, and
+  // the setting is torn down when the hero unmounts on navigation.
+  useEffect(() => {
+    const root = document.documentElement
+    const previous = root.style.scrollSnapType
+    root.style.scrollSnapType = 'y mandatory'
+    return () => {
+      root.style.scrollSnapType = previous
+    }
+  }, [])
 
   useEffect(() => {
     setWebgl(hasWebGL())
 
     // Seakeeping is unprompted motion, so it honours the OS setting. The
     // scroll sweep is not affected — that one the user is driving themselves.
+    // The test flag rides the same switch: it already means "hold the rest
+    // pose", which is exactly the deterministic frame screenshots need.
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const syncMotion = () => setStill(motion.matches)
+    const syncMotion = () => setStill(E2E || motion.matches)
     syncMotion()
     motion.addEventListener('change', syncMotion)
 
     // Mapped over the whole document rather than one element: the vessel is
     // on screen for the entire page, so the sweep should be too.
     const update = () => {
-      const doc = document.documentElement
-      // Whichever element is actually scrolling. If the document itself is not
-      // the scroller, window.scrollY stays pinned at 0 no matter how far the
-      // user scrolls — which is what leaves a scroll-driven rig frozen.
-      const scrolled = window.scrollY || doc.scrollTop || document.body.scrollTop || 0
-      const travel = doc.scrollHeight - window.innerHeight
+      const el = stops.current
+      if (!el) return
 
-      progress.current = travel <= 0 ? 0 : THREE.MathUtils.clamp(scrolled / travel, 0, 1)
+      // Measured from the snap panels themselves, NOT from the document.
+      //
+      // document.scrollHeight includes the header and footer as well as these
+      // panels, so dividing by it stretched the mapping: every stop landed a
+      // little further off than the last, and by the fifth system the camera
+      // was nowhere near the node being labelled.
+      //
+      // Reading the container's own rect makes the two agree by construction.
+      // A panel snapped to the top of the viewport puts the container top at
+      // exactly -(i * panelHeight), so stop i is exactly i/(stops-1) — whatever
+      // else the page has above or below it.
+      const panelHeight = el.offsetHeight / SNAP_STOPS
+      const travel = panelHeight * (SNAP_STOPS - 1)
+      const scrolled = -el.getBoundingClientRect().top
 
-      // Written straight to the DOM rather than through state: this fires on
-      // every scroll event, and a setState here would re-render the whole
-      // scene tree for a debug label.
-      if (readout.current) {
-        readout.current.textContent = `${(progress.current * 100).toFixed(1)}%`
-      }
+      // Only the TARGET is written here. ProgressDriver eases the scene toward
+      // it each frame, so a hard snap correction becomes a glide instead of a
+      // jump. Everything downstream reads the eased value, never this one.
+      scrollTarget.current = travel <= 0 ? 0 : THREE.MathUtils.clamp(scrolled / travel, 0, 1)
     }
 
     update()
@@ -661,29 +936,102 @@ export function VesselScene({ label }: { label: string }) {
           onCreated={({ gl }) => gl.setClearColor(COLOR.navy950)}
           aria-hidden="true"
         >
+          {/* First inside the canvas: its frame callback must run before the
+              camera and markers read the eased value. */}
+          <ProgressDriver
+            target={scrollTarget}
+            progress={progress}
+            panelEl={panelEl}
+            introEl={introEl}
+            readoutEl={readout}
+            onSystemChange={handleSystemChange}
+          />
           <fog attach="fog" args={[COLOR.navy950, FOG_NEAR, FOG_FAR]} />
           <Suspense fallback={null}>
-            <Vessel still={still} />
+            <Vessel still={still}>
+              {SYSTEMS.map((spec, i) => (
+                <SystemNode
+                  key={spec.index}
+                  spec={spec}
+                  index={i}
+                  progress={progress}
+                  labels={labelEls}
+                />
+              ))}
+            </Vessel>
           </Suspense>
           <Waterplane still={still} />
           <CameraRig progress={progress} />
         </Canvas>
       </div>
 
+      {/* One label per system, pinned to its node. `left/top: 0` with a
+          transform written each frame — transforms are composited, so tracking
+          the node costs nothing, whereas animating left/top forces layout. */}
+      {SYSTEMS.map((spec, i) => (
+        <div
+          key={spec.index}
+          ref={(el) => {
+            labelEls.current[i] = el
+          }}
+          className="pointer-events-none fixed top-0 left-0 z-40 opacity-0"
+          style={{ willChange: 'transform' }}
+          aria-hidden="true"
+        >
+          <div className="border-signal-400/50 bg-navy-950/85 text-signal-300 -translate-y-1/2 translate-x-4 rounded border px-2 py-1 font-mono text-[10px] tracking-[0.14em] whitespace-nowrap uppercase">
+            {spec.title}
+          </div>
+        </div>
+      ))}
+
+      {/* Company intro, holding the first stop before any system appears.
+          Sits in the same right-hand column the diagrams use, so the eye does
+          not have to move when the first system takes over from it. */}
+      {intro && (
+        <div
+          ref={introEl}
+          data-testid="hero-intro"
+          className="fixed inset-x-3 bottom-3 z-40 lg:inset-x-auto lg:top-1/2 lg:right-10 lg:bottom-auto lg:w-[min(28rem,40vw)] lg:-translate-y-1/2"
+        >
+          {intro}
+        </div>
+      )}
+
+      {/* The diagram carries the technical content the model cannot. */}
+      <div
+        ref={panelEl}
+        data-testid="system-panel"
+        className="pointer-events-none fixed inset-x-3 bottom-3 z-40 opacity-0 lg:inset-x-auto lg:top-1/2 lg:right-10 lg:bottom-auto lg:w-[min(28rem,40vw)] lg:-translate-y-1/2"
+        aria-hidden="true"
+      >
+        {activeSystem >= 0 && <SystemPanel spec={SYSTEMS[activeSystem]} />}
+      </div>
+
       {/* Sits outside the vessel layer: that one is at -z-10 and would put the
           readout behind the page background. */}
-      {DEBUG_SCROLL && (
+      {/* Hidden under test even while the debug aid ships: it will be removed
+          before launch, and baselines with it burned in would all break then. */}
+      {DEBUG_SCROLL && !E2E && (
         <div
           ref={readout}
-          className="bg-navy-950/90 text-signal-400 border-navy-800 pointer-events-none fixed top-3 right-3 z-50 rounded border px-2 py-1 font-mono text-[11px] leading-relaxed whitespace-pre tabular-nums"
+          className="bg-navy-950/90 text-signal-400 border-navy-800 pointer-events-none fixed bottom-3 left-3 z-50 rounded border px-2 py-1 font-mono text-[11px] leading-relaxed whitespace-pre tabular-nums"
         >
           0.0%
         </div>
       )}
 
-      {/* A fixed layer contributes no height, so without this there is nothing
-          to scroll and the sweep can never advance past p = 0. */}
-      <div style={{ height: `${SWEEP_SCROLL_VH}vh` }} aria-hidden="true" />
+      {/* One viewport-tall panel per stop, each a snap target. `h-screen`
+          rather than `h-dvh` on purpose: dvh changes as mobile browser
+          toolbars collapse, which would resize every panel mid-scroll and move
+          the snap points under the user's finger.
+          The wrapper is measured every frame to derive progress — see update(). */}
+      {/* data-scroll-stops is the tests' handle on the runway: they scroll to
+          container top + i × viewport to land exactly on stop i. */}
+      <div ref={stops} data-scroll-stops aria-hidden="true">
+        {Array.from({ length: SNAP_STOPS }, (_, i) => (
+          <div key={i} className="h-screen" style={{ scrollSnapAlign: 'start' }} />
+        ))}
+      </div>
     </>
   )
 }

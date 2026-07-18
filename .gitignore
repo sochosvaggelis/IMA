@@ -30,6 +30,11 @@ dist-ssr
 # history they are extremely awkward to remove.
 bulkCarrier/
 
+# Playwright output. Baselines in tests/__screenshots__ ARE committed — only
+# run artifacts and failure diffs are ignored.
+test-results/
+playwright-report/
+
 # Local agent / editor state
 .claude/
 
