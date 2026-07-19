@@ -16,7 +16,7 @@ export function Logo({ className }: { className?: string }) {
       </svg>
       <span className="flex flex-col leading-none">
         <span className="text-base font-bold tracking-tight text-white">IMA</span>
-        <span className="text-navy-400 font-mono text-[9px] tracking-[0.14em] uppercase">
+        <span className="text-navy-400 font-mono text-[0.5625rem] tracking-[0.14em] uppercase">
           Marine Automations
         </span>
       </span>

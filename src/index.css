@@ -47,6 +47,50 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  /* ----------------------------------------------------------------
+     Fluid root scale.
+
+     The desktop design is calibrated at 1920px: at that width the root
+     is exactly the browser default and the site renders as designed.
+     Every other desktop width scales the root by viewport ÷ 1920, and
+     since the whole design is sized in rem, the entire composition —
+     type, spacing, header, panels — holds its proportions instead of
+     rattling around a bigger screen or overflowing a smaller one.
+
+     The pieces, and why each is what it is:
+
+     - `tan(atan2(100vw, 1920px))` is the viewport-to-reference ratio as
+       a unitless NUMBER — tan(atan2(a, b)) is exactly a/b. It has to be
+       done this way: calc cannot divide one length by another directly,
+       and writing `100vw / 1920 * 1rem` multiplies length by length,
+       which type-checks as invalid and silently drops the declaration.
+
+     - That number × 1rem, not a bare vw figure: rem on the root
+       resolves against the browser's INITIAL font size, so a user who
+       has raised their default font size scales the whole design up
+       with it. A px formula would silently override that setting.
+
+     - `max(0.75rem, …)` is the legibility floor. Proportionality is
+       surrendered below 1440px rather than serve 8px body text: from
+       there down, text holds size and only the vw-driven parts of the
+       layout keep compressing.
+
+     - No upper cap: a 4K screen is meant to get the 1920 design at
+       exactly 2×. Capping would reintroduce the stranded-in-a-corner
+       look this exists to remove.
+
+     - Applied from 1024px up only — the lg breakpoint, where the
+       desktop layout starts. Below it the mobile layout keeps the
+       browser default. (Tailwind's breakpoints resolve against the
+       initial font size, not this value, so lg: stays put at 1024px
+       and cannot be moved by the scaling it gates.)
+  ---------------------------------------------------------------- */
+  @media (min-width: 1024px) {
+    html {
+      font-size: max(0.75rem, calc(tan(atan2(100vw, 1920px)) * 1rem));
+    }
+  }
+
   body {
     @apply bg-navy-950 text-navy-100 font-sans antialiased;
   }
@@ -103,7 +147,11 @@
       color-mix(in oklab, var(--color-signal-500) 8%, transparent) 1px,
       transparent 1px
     );
-  background-size: 48px 48px;
+  /* rem, not px: the grid must keep its density relative to the content it
+     sits behind when the fluid root scale resizes that content. The 1px
+     rules above stay px on purpose — hairlines should render as hairlines
+     at every scale. */
+  background-size: 3rem 3rem;
 }
 
 /* ------------------------------------------------------------------
