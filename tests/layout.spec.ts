@@ -68,13 +68,15 @@ test.describe('home hero overlays', () => {
   })
 })
 
-test.describe('home mobile explorer', () => {
+test.describe('home mobile feed', () => {
   test.skip(
     ({ viewport }) => (viewport?.width ?? 0) >= DESKTOP_LAYOUT_WIDTH,
-    'desktop home is the sweep, not the explorer',
+    'desktop home is the sweep, not the feed',
   )
 
-  test('page scrolls freely and a tapped system expands in place', async ({ page }) => {
+  test('page scrolls freely and the camera tracks the section being read', async ({
+    page,
+  }) => {
     await gotoStable(page, '/')
     await waitForVessel(page)
 
@@ -83,24 +85,38 @@ test.describe('home mobile explorer', () => {
     const snap = await page.evaluate(
       () => getComputedStyle(document.documentElement).scrollSnapType,
     )
-    expect(snap, 'no scroll snapping on the explorer').toContain('none')
+    expect(snap, 'no scroll snapping on the feed').toContain('none')
 
-    const explorer = page.getByTestId('systems-explorer')
-    await expect(explorer).toBeVisible()
-    await expect(explorer.locator('h1')).toBeVisible()
+    const feed = page.getByTestId('systems-feed')
+    await expect(feed).toBeVisible()
+    await expect(feed.locator('h1')).toBeVisible()
 
-    // Tap the third system: the row expands and shows its diagram.
-    const row = explorer.getByRole('button', { name: /power distribution/i })
-    await row.scrollIntoViewIfNeeded()
-    await row.click()
-    await expect(row).toHaveAttribute('aria-expanded', 'true')
-    await expect(explorer.getByTestId('explorer-diagram')).toBeVisible()
+    // Every system is present and always expanded — the feed has no hidden
+    // content behind interaction.
+    const sections = feed.getByTestId('feed-section')
+    await expect(sections).toHaveCount(9)
 
-    // Expansion must not break the page's one hard geometry rule.
+    // Put the fifth section across the reading line the feed publishes, and
+    // the eased progress should arrive at that system and light its heading.
+    // Read from data-focus rather than hardcoded here: a test that pins the
+    // fraction independently would pass while the two drifted apart.
+    const focus = Number(await feed.getAttribute('data-focus'))
+    expect(focus, 'feed publishes its reading line').toBeGreaterThan(0)
+    await sections.nth(4).evaluate((el, f) => {
+      const r = el.getBoundingClientRect()
+      window.scrollBy(0, r.top + r.height / 2 - window.innerHeight * f)
+    }, focus)
+    await page.waitForTimeout(400)
+    await expect(sections.nth(4)).toHaveAttribute('data-active', 'true')
+
+    // Exactly one system may own the camera at a time.
+    await expect(sections.and(page.locator('[data-active]'))).toHaveCount(1)
+
+    // Long diagrams must not break the page's one hard geometry rule.
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     )
-    expect(overflow, 'expanded diagram must not overflow sideways').toBeLessThanOrEqual(0)
+    expect(overflow, 'feed must not overflow sideways').toBeLessThanOrEqual(0)
   })
 })
 

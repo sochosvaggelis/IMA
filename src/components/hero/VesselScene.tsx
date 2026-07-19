@@ -186,10 +186,10 @@ const LEFT_SHIFT = 0.22
     vessel up the frame. Raise to lift further, negative to drop it. */
 const UP_SHIFT = 0.08
 
-/** Where the mobile explorer layout takes over. The same 1024px the CSS lg:
+/** Where the mobile feed layout takes over. The same 1024px the CSS lg:
     breakpoint uses, so the camera's idea of the layout always matches the one
     on screen. Below it the canvas is a sticky strip at the top of the page and
-    the systems are a tap-driven list, not a scroll sweep. */
+    the systems scroll beneath it as a normal feed, not a snap runway. */
 const MOBILE_LAYOUT_WIDTH = 1024
 
 /** Ship fraction for the mobile strip. The strip is the vessel's whole stage —
@@ -357,6 +357,13 @@ const SEA_WAVES = [
   phase: w.phase,
 }))
 
+/** Gap between a system's ring and its label chip. Authored in rem so it keeps
+    its proportion under the fluid root scale, resolved to px where used. */
+const LABEL_GAP_REM = 1
+
+/** Smallest gap left between a label chip and the canvas edge. */
+const LABEL_EDGE_PX = 6
+
 /** Fog hides the hard outer edge of the grid — without it the sea ends in a
     visible rectangle on the horizon in the profile view. It also fades the far
     end of the hull when viewed down its length, which reads as depth.
@@ -513,6 +520,27 @@ function SystemNode({
   const outer = useMemo(() => ringGeometry(1.1), [])
   const world = useMemo(() => new THREE.Vector3(), [])
 
+  // Chip width and the gap between node and chip, measured off the frame loop.
+  // The placement below needs both every frame, and reading offsetWidth there
+  // would force a layout on nine elements per frame.
+  const chipWidth = useRef(0)
+  const gapPx = useRef(LABEL_GAP_REM * 16)
+
+  useEffect(() => {
+    const measure = () => {
+      const chip = labels.current[index]?.firstElementChild
+      if (!(chip instanceof HTMLElement)) return
+      chipWidth.current = chip.offsetWidth
+      // The gap is authored in rem so it tracks the fluid root scale; resolve
+      // it to px here, where reading the root's computed size is free.
+      const root = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+      gapPx.current = LABEL_GAP_REM * root
+    }
+    measure()
+    // Webfonts land after first paint and change the chip's width.
+    void document.fonts?.ready.then(measure)
+  }, [labels, index, size.width])
+
   useEffect(
     () => () => {
       inner.dispose()
@@ -545,11 +573,35 @@ function SystemNode({
       g.getWorldPosition(world).project(camera)
       // z > 1 means the anchor is behind the camera, where the projection
       // flips and the label would appear mirrored on the wrong side.
-      const behind = world.z > 1
-      label.style.transform = `translate3d(${(world.x * 0.5 + 0.5) * size.width}px, ${
+      // Outside NDC means the node is out of frame: harmless when the canvas
+      // is the whole viewport, but on the mobile strip the label would escape
+      // the canvas band and land on the article text below it.
+      const hidden =
+        world.z > 1 || Math.abs(world.x) > 1 || Math.abs(world.y) > 1
+
+      // Horizontal placement, in canvas pixels. The chip sits to the RIGHT of
+      // its node by default; it swings to the left when that would overhang
+      // the canvas, and is clamped inside as a last resort — on a phone strip
+      // a long name ("Electric Motors & Drives") fits on neither side of a
+      // centred node, and a chip half off the edge is worse than one that has
+      // drifted a little from its ring.
+      const x = (world.x * 0.5 + 0.5) * size.width
+      const w = chipWidth.current
+      const gap = gapPx.current
+      let left = x + gap
+      if (w > 0) {
+        if (left + w > size.width - LABEL_EDGE_PX) left = x - gap - w
+        left = THREE.MathUtils.clamp(
+          left,
+          LABEL_EDGE_PX,
+          Math.max(LABEL_EDGE_PX, size.width - w - LABEL_EDGE_PX),
+        )
+      }
+
+      label.style.transform = `translate3d(${left}px, ${
         (-world.y * 0.5 + 0.5) * size.height
       }px, 0)`
-      label.style.opacity = String(behind ? 0 : active)
+      label.style.opacity = String(hidden ? 0 : active)
     }
   })
 
@@ -880,80 +932,132 @@ function SystemPanel({ spec }: { spec: SystemSpec }) {
   )
 }
 
+/** Where the reading line sits, as a fraction of viewport height. The section
+    spanning this line is the one being read, so it is the one the camera
+    shows.
+
+    It must land just below the 45dvh strip — inside the FIRST section clear of
+    it, which is the one a reader's eye is on. Dropping it to mid-screen looks
+    reasonable until the sections are short: at 0.62 with text-only sections
+    the line cleared the first one entirely and the vessel labelled a system
+    two headings further down than the one being read. */
+const FEED_FOCUS = 0.55
+
 /**
- * The mobile home: an instrument panel, not a scroll ride.
+ * The mobile home: a scrollytelling feed under the pinned vessel.
  *
- * The vessel sits pinned in the strip above; these rows are the controls.
- * Tapping one writes that system's `at` into the progress target — the exact
- * value the desktop sweep would reach by scrolling there — and the shared
- * easing flies the camera over while the row expands its diagram in place.
- * Everything downstream of the target (camera, node pulses, fog) is reused
- * untouched; taps and scroll are just two authors of the same number.
+ * The nine systems are ordinary text sections scrolling beneath the strip —
+ * no snapping, no hijack, nothing hidden behind a tap. What keeps the
+ * sweep alive is the mapping: a system HOLDS the camera for as long as its
+ * section spans the reading line (two anchors per section, top and bottom,
+ * both carrying its `at`), and the step between sections becomes a flight
+ * because ProgressDriver eases everything written into the target. Holding
+ * over the section's whole height — rather than anchoring its centre — is
+ * what makes the flight start while the incoming heading is still on screen:
+ * sections are taller than the reading area, and a centre anchor fired only
+ * after the heading had scrolled under the strip. Start and end anchors at
+ * the feed's edges hand the sweep its opening and closing views. Scroll and
+ * the runway are just two authors of the same number.
  */
-function MobileSystemsExplorer({
+function MobileSystemsFeed({
   target,
+  active,
   intro,
 }: {
   target: { current: number }
+  active: number
   intro?: ReactNode
 }) {
-  const [open, setOpen] = useState(-1)
+  const feed = useRef<HTMLOListElement>(null)
+  const sections = useRef<Array<HTMLLIElement | null>>([])
 
-  const select = (i: number) => {
-    const next = open === i ? -1 : i
-    setOpen(next)
-    target.current = next === -1 ? 0 : SYSTEMS[next].at
-  }
+  useEffect(() => {
+    const update = () => {
+      const wrap = feed.current
+      if (!wrap) return
+
+      // Anchors are re-measured every event rather than cached: fonts and
+      // diagram layout land after first paint and move every section.
+      const rect = wrap.getBoundingClientRect()
+      const anchors: Array<[number, number]> = [[rect.top, 0]]
+      sections.current.forEach((el, i) => {
+        if (!el) return
+        const r = el.getBoundingClientRect()
+        anchors.push([r.top, SYSTEMS[i].at], [r.bottom, SYSTEMS[i].at])
+      })
+      anchors.push([rect.bottom, 1])
+
+      const focus = window.innerHeight * FEED_FOCUS
+      let p = anchors[anchors.length - 1][1]
+      if (focus <= anchors[0][0]) {
+        p = anchors[0][1]
+      } else {
+        for (let i = 0; i < anchors.length - 1; i++) {
+          const [y0, p0] = anchors[i]
+          const [y1, p1] = anchors[i + 1]
+          if (focus <= y1) {
+            p = y1 === y0 ? p1 : p0 + ((p1 - p0) * (focus - y0)) / (y1 - y0)
+            break
+          }
+        }
+      }
+      target.current = THREE.MathUtils.clamp(p, 0, 1)
+    }
+
+    update()
+    window.addEventListener('scroll', update, { passive: true, capture: true })
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, { capture: true })
+      window.removeEventListener('resize', update)
+    }
+  }, [target])
 
   return (
-    <div data-testid="systems-explorer">
+    // data-focus publishes the reading line for the layout test, which has to
+    // place a section against it to assert the camera follows the reader.
+    <div data-testid="systems-feed" data-focus={FEED_FOCUS}>
       {intro && <div className="px-4 pt-6 sm:px-8">{intro}</div>}
 
-      <ul className="px-4 pt-4 pb-10 sm:px-8">
+      <ol ref={feed} className="px-4 pb-10 sm:px-8">
         {SYSTEMS.map((spec, i) => {
-          const active = open === i
+          const current = active === i
           return (
-            <li key={spec.index} className="border-navy-800/70 border-b">
-              <button
-                type="button"
-                onClick={() => select(i)}
-                aria-expanded={active}
-                className="flex min-h-14 w-full items-center gap-4 py-2 text-left"
+            <li
+              key={spec.index}
+              ref={(el) => {
+                sections.current[i] = el
+              }}
+              data-testid="feed-section"
+              data-active={current || undefined}
+              className="border-navy-800/70 border-b py-8"
+            >
+              {/* The accent follows the eased progress (via active), not the
+                  raw scroll — the heading lights up when the camera actually
+                  arrives, which reads as the vessel answering the reader. */}
+              <p
+                className={`font-mono text-xs tracking-[0.2em] transition-colors ${
+                  current ? 'text-signal-400' : 'text-signal-500/50'
+                }`}
               >
-                <span
-                  className={`font-mono text-xs ${active ? 'text-signal-400' : 'text-signal-500/60'}`}
-                >
-                  {spec.index}
-                </span>
-                <span
-                  className={`flex-1 text-base ${active ? 'font-medium text-white' : 'text-navy-200'}`}
-                >
-                  {spec.title}
-                </span>
-                {/* Chevron rotates to read as open/closed — the only state cue
-                    that survives a glance while the camera is still flying. */}
-                <svg
-                  viewBox="0 0 16 16"
-                  className={`text-navy-400 size-4 shrink-0 transition-transform ${active ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  aria-hidden="true"
-                >
-                  <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-
-              {active && (
-                <div className="pb-6" data-testid="explorer-diagram">
-                  <spec.Diagram />
-                  <p className="text-navy-300 mt-4 text-sm leading-relaxed">{spec.blurb}</p>
-                </div>
-              )}
+                {spec.index} / {String(SYSTEMS.length).padStart(2, '0')}
+              </p>
+              <h2
+                className={`mt-1.5 text-lg font-semibold transition-colors ${
+                  current ? 'text-white' : 'text-navy-200'
+                }`}
+              >
+                {spec.title}
+              </h2>
+              {/* No diagram here on purpose. The schematics are dense enough
+                  that a phone shrinks them past reading, and the vessel above
+                  is already carrying the visual with its labelled node. Text
+                  is what the narrow column does well. */}
+              <p className="text-navy-300 mt-3 text-sm leading-relaxed">{spec.blurb}</p>
             </li>
           )
         })}
-      </ul>
+      </ol>
     </div>
   )
 }
@@ -999,21 +1103,17 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
   const [still, setStill] = useState(E2E)
 
   // Which home presentation is live: the desktop scroll sweep or the mobile
-  // tap explorer. React state rather than CSS hiding, because the two render
-  // the SAME content (the intro with its h1, the system diagrams) and only
-  // one copy may exist in the DOM at a time.
+  // feed. React state rather than CSS hiding, because the two render the
+  // SAME content (the intro with its h1, the system diagrams) and only one
+  // copy may exist in the DOM at a time. Both layouts re-derive the progress
+  // target from scroll immediately on mount, so no reset is needed when the
+  // window crosses the boundary.
   const [mobileLayout, setMobileLayout] = useState(
     () => window.innerWidth < MOBILE_LAYOUT_WIDTH,
   )
   useEffect(() => {
     const desktop = window.matchMedia(`(min-width: ${MOBILE_LAYOUT_WIDTH}px)`)
-    const sync = () => {
-      setMobileLayout(!desktop.matches)
-      // Crossing INTO mobile: nothing is tapped yet, and the last scroll-owned
-      // target would leave the camera parked mid-sweep with no UI explaining
-      // why. Crossing out is covered by the scroll handler re-measuring.
-      if (!desktop.matches) scrollTarget.current = 0
-    }
+    const sync = () => setMobileLayout(!desktop.matches)
     desktop.addEventListener('change', sync)
     return () => desktop.removeEventListener('change', sync)
   }, [])
@@ -1089,10 +1189,10 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
       const travel = panelHeight * (SNAP_STOPS - 1)
       const scrolled = -el.getBoundingClientRect().top
 
-      // On the mobile explorer the runway is display:none, so travel measures
+      // On the mobile feed the runway is display:none, so travel measures
       // zero. Returning — rather than writing 0 — is what hands the target to
-      // the tap handlers: scroll fires constantly while the list scrolls, and
-      // writing here would yank the camera home mid-flight on every frame.
+      // the feed's own scroll mapping: both handlers fire on every scroll,
+      // and writing 0 here would yank the camera home each time.
       if (travel <= 0) return
 
       // Only the TARGET is written here. ProgressDriver eases the scene toward
@@ -1126,16 +1226,15 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
           background.
 
           Mobile: a sticky strip at the top of a normally-scrolling page — the
-          instrument-panel stage the tap-driven list flies the camera around
-          in. `z-10` here for the opposite reason the desktop is negative: the
-          canvas clears opaque navy, and the list is MEANT to slide away
-          beneath it. One element rather than two branches because a second
-          Canvas would be a second WebGL context and a second copy of the
-          model. */}
+          stage the scrolling feed flies the camera around in. `z-10` here for
+          the opposite reason the desktop is negative: the canvas clears
+          opaque navy, and the feed is MEANT to slide away beneath it. One
+          element rather than two branches because a second Canvas would be a
+          second WebGL context and a second copy of the model. */}
       <div
-        // NOT pointer-events-none on mobile: rows scrolled under the opaque
-        // strip are still in the hit-test tree, and a transparent strip would
-        // forward taps to buttons the user cannot see. The strip swallows
+        // NOT pointer-events-none on mobile: content scrolled under the
+        // opaque strip is still in the hit-test tree, and a transparent strip
+        // would forward taps to links the user cannot see. The strip swallows
         // them. Desktop turns interaction off — the layer is fixed under the
         // whole page and must never intercept clicks meant for the content.
         className="border-navy-800 sticky top-0 z-10 h-[45dvh] border-b lg:pointer-events-none lg:fixed lg:inset-0 lg:-z-10 lg:h-auto lg:border-b-0"
@@ -1180,28 +1279,35 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
         </Canvas>
       </div>
 
-      {/* In flow directly under the sticky strip: the intro and the tappable
-          system list scroll beneath the pinned vessel. */}
-      {mobileLayout && <MobileSystemsExplorer target={scrollTarget} intro={intro} />}
+      {/* In flow directly under the sticky strip: the intro and the system
+          feed scroll beneath the pinned vessel, driving the camera as they
+          go. */}
+      {mobileLayout && (
+        <MobileSystemsFeed target={scrollTarget} active={activeSystem} intro={intro} />
+      )}
 
       {/* One label per system, pinned to its node. `left/top: 0` with a
           transform written each frame — transforms are composited, so tracking
           the node costs nothing, whereas animating left/top forces layout.
-          Desktop-only: the transform maps canvas coordinates to the viewport,
-          which only agree while the canvas IS the viewport — on the strip the
-          chip would land somewhere unrelated, and the explorer row already
-          names the active system anyway. */}
+
+          The transform is in canvas pixels against a viewport-fixed element,
+          so the two only agree while the canvas sits at the viewport origin.
+          Both layouts satisfy that: desktop's layer is inset-0, and the mobile
+          strip is sticky at top-0 with the header floating above it. */}
       {SYSTEMS.map((spec, i) => (
         <div
           key={spec.index}
           ref={(el) => {
             labelEls.current[i] = el
           }}
-          className="pointer-events-none fixed top-0 left-0 z-40 hidden opacity-0 lg:block"
+          className="pointer-events-none fixed top-0 left-0 z-40 opacity-0"
           style={{ willChange: 'transform' }}
           aria-hidden="true"
         >
-          <div className="border-signal-400/50 bg-navy-950/85 text-signal-300 -translate-y-1/2 translate-x-4 rounded border px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] whitespace-nowrap uppercase">
+          {/* Only the vertical centring lives here — the horizontal offset is
+              written each frame, since which side of the node the chip takes
+              depends on the room left in the canvas. */}
+          <div className="border-signal-400/50 bg-navy-950/85 text-signal-300 -translate-y-1/2 rounded border px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] whitespace-nowrap uppercase">
             {spec.title}
           </div>
         </div>
@@ -1264,9 +1370,10 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
 
           It also squares the document off: the footer no longer adds height
           past the runway, so maximum scroll now coincides with the last stop. */}
-      {/* Desktop-only: the explorer page has no sweep and therefore no runway.
-          display:none collapses offsetHeight to zero, which is exactly the
-          signal update() reads to leave the tap-owned target alone. */}
+      {/* Desktop-only: the feed page creates its own scroll height and drives
+          progress from its sections. display:none collapses offsetHeight to
+          zero, which is exactly the signal update() reads to leave the
+          feed-owned target alone. */}
       <div
         ref={stops}
         data-scroll-stops

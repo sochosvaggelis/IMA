@@ -45,26 +45,31 @@ test.describe('home scroll sweep', () => {
   })
 })
 
-test.describe('home mobile explorer', () => {
+test.describe('home mobile feed', () => {
   test.skip(
     ({ viewport }) => (viewport?.width ?? 0) >= DESKTOP_LAYOUT_WIDTH,
-    'desktop home is the sweep, not the explorer',
+    'desktop home is the sweep, not the feed',
   )
 
-  test('opening view and an expanded system', async ({ page }) => {
+  test('opening view and a mid-feed section', async ({ page }) => {
     test.setTimeout(240_000)
 
     await gotoStable(page, '/')
     await waitForVessel(page)
-    await expect.soft(page).toHaveScreenshot('home-explorer-closed.png')
+    await expect.soft(page).toHaveScreenshot('home-feed-top.png')
 
-    const row = page.getByRole('button', { name: /power distribution/i })
-    await row.scrollIntoViewIfNeeded()
-    await row.click()
-    // The camera flight is disabled under ?e2e=1 (progress snaps), so one
-    // settled frame after the click is a stable screenshot.
+    // Fifth section on the reading line — camera on system 05, heading lit.
+    // Under ?e2e=1 progress snaps instantly, so one settled wait suffices.
+    const focus = Number(await page.getByTestId('systems-feed').getAttribute('data-focus'))
+    await page
+      .getByTestId('feed-section')
+      .nth(4)
+      .evaluate((el, f) => {
+        const r = el.getBoundingClientRect()
+        window.scrollBy(0, r.top + r.height / 2 - window.innerHeight * f)
+      }, focus)
     await page.waitForTimeout(500)
-    await expect.soft(page).toHaveScreenshot('home-explorer-open.png')
+    await expect.soft(page).toHaveScreenshot('home-feed-mid.png')
   })
 })
 
