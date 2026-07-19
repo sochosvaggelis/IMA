@@ -1,23 +1,65 @@
 import { cn } from '@/lib/cn'
 
-/** Wordmark: a top-down hull glyph echoing the hero, plus the initials. */
-export function Logo({ className }: { className?: string }) {
+/**
+ * Colourways of the company badge. `navy` is the artwork as supplied and is
+ * for light backgrounds; the other two are generated from it by
+ * scripts/recolour-logo.mjs and exist because this site is dark.
+ */
+const SOURCES = {
+  signal: 'logo-signal.png',
+  white: 'logo-white.png',
+  navy: 'logo.png',
+} as const
+
+/** The badge as drawn, at its native pixel size — given to the img so the
+    header reserves the right box before the file arrives and nothing shifts. */
+const NATURAL = { width: 153, height: 160 }
+
+/** The company badge, with the initials and full name set beside it.
+ *
+ * The badge carries the name in its ring too, but that ring is only ~10px tall
+ * in the artwork: at any header-sized rendering it reads as texture, not text.
+ * So the type beside it does the reading, and spells the name out in full. */
+export function Logo({
+  className,
+  variant = 'signal',
+}: {
+  className?: string
+  variant?: keyof typeof SOURCES
+}) {
   return (
     <span className={cn('inline-flex items-center gap-2.5', className)}>
-      <svg viewBox="0 0 32 32" className="size-7 shrink-0" aria-hidden="true">
-        <circle cx="16" cy="16" r="15" className="fill-navy-800 stroke-signal-500/50" strokeWidth="1" />
-        <path
-          d="M 7 12 L 20 12 C 24 12.4, 26 14, 27 16 C 26 18, 24 19.6, 20 20 L 7 20 C 5.6 20, 5 18.8, 5 16 C 5 13.2, 5.6 12, 7 12 Z"
-          className="fill-signal-500/20 stroke-signal-400"
-          strokeWidth="1.4"
-        />
-        <line x1="5" y1="16" x2="27" y2="16" className="stroke-signal-400/40" strokeWidth="0.8" strokeDasharray="2 2" />
-        <circle cx="10" cy="16" r="1.8" className="fill-signal-300" />
-      </svg>
+      {/* Lives in public/, so the base path has to be applied at runtime:
+          GitHub Pages serves this site from /IMA/ while dev serves from /.
+          BASE_URL carries its own trailing slash in both modes. */}
+      <img
+        src={`${import.meta.env.BASE_URL}${SOURCES[variant]}`}
+        alt=""
+        aria-hidden="true"
+        width={NATURAL.width}
+        height={NATURAL.height}
+        // Height-driven with width auto: the artwork is not square, and a
+        // square box would letterbox it off its own centre.
+        className="h-12 w-auto shrink-0"
+      />
       <span className="flex flex-col leading-none">
-        <span className="text-base font-bold tracking-tight text-white">IMA</span>
-        <span className="text-navy-400 font-mono text-[0.5625rem] tracking-[0.14em] uppercase">
-          Marine Automations
+        {/* leading-none explicitly: text-lg carries its own 1.75rem line
+            height, which the container's leading-none does not override, and
+            those 10 extra pixels left the lockup all but touching the top and
+            bottom of the phone header. */}
+        <span className="text-lg leading-none font-bold tracking-tight text-white">IMA</span>
+        {/* The full name, set out over two lines beneath the initials.
+            whitespace-nowrap on both: the column is only as wide as the
+            longest line, and at phone width "Marine Automations" would
+            otherwise break and turn a three-line lockup into four.
+
+            Tracking is looser than the type scale's default because these are
+            small caps set in mono — but it is tighter than the 0.14em used
+            elsewhere for micro-labels, since at this size that much letter
+            spacing pushed the lockup wide enough to crowd the phone header. */}
+        <span className="text-navy-300 mt-1.5 flex flex-col gap-1 font-mono text-xs leading-none tracking-[0.1em] whitespace-nowrap uppercase">
+          <span>International</span>
+          <span>Marine Automations</span>
         </span>
       </span>
     </span>
