@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test'
-import { ALL_ROUTES, HOME_STOPS, gotoStable, scrollToStop, waitForVessel } from './helpers'
+import {
+  ALL_ROUTES,
+  DESKTOP_LAYOUT_WIDTH,
+  HOME_STOPS,
+  gotoStable,
+  scrollToStop,
+  waitForVessel,
+} from './helpers'
 
 /**
  * Layout invariants — rules that must hold at EVERY viewport, checked from
@@ -25,6 +32,12 @@ for (const route of ALL_ROUTES) {
 }
 
 test.describe('home hero overlays', () => {
+  // The overlays and the runway only exist on the desktop sweep.
+  test.skip(
+    ({ viewport }) => (viewport?.width ?? 0) < DESKTOP_LAYOUT_WIDTH,
+    'mobile home is the tap explorer, not the sweep',
+  )
+
   test('intro holds the opening stop, then yields to the systems', async ({ page }) => {
     await gotoStable(page, '/')
     await waitForVessel(page)
@@ -52,6 +65,42 @@ test.describe('home hero overlays', () => {
       await expect.soft(panel, `stop ${stop}: panel fully faded in`).toHaveCSS('opacity', '1')
       await expectInsideViewport(page, panel, `stop ${stop}: system panel`)
     }
+  })
+})
+
+test.describe('home mobile explorer', () => {
+  test.skip(
+    ({ viewport }) => (viewport?.width ?? 0) >= DESKTOP_LAYOUT_WIDTH,
+    'desktop home is the sweep, not the explorer',
+  )
+
+  test('page scrolls freely and a tapped system expands in place', async ({ page }) => {
+    await gotoStable(page, '/')
+    await waitForVessel(page)
+
+    // The sweep's mandatory snapping must NOT leak into this layout — with no
+    // runway on screen it would glue the page to the top.
+    const snap = await page.evaluate(
+      () => getComputedStyle(document.documentElement).scrollSnapType,
+    )
+    expect(snap, 'no scroll snapping on the explorer').toContain('none')
+
+    const explorer = page.getByTestId('systems-explorer')
+    await expect(explorer).toBeVisible()
+    await expect(explorer.locator('h1')).toBeVisible()
+
+    // Tap the third system: the row expands and shows its diagram.
+    const row = explorer.getByRole('button', { name: /power distribution/i })
+    await row.scrollIntoViewIfNeeded()
+    await row.click()
+    await expect(row).toHaveAttribute('aria-expanded', 'true')
+    await expect(explorer.getByTestId('explorer-diagram')).toBeVisible()
+
+    // Expansion must not break the page's one hard geometry rule.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow, 'expanded diagram must not overflow sideways').toBeLessThanOrEqual(0)
   })
 })
 

@@ -14,6 +14,11 @@ export const ALL_ROUTES = [
 /** Snap stops on the home sweep: intro + nine systems + closing frame. */
 export const HOME_STOPS = 11
 
+/** Below this width the home is the tap-driven explorer, not the scroll
+    sweep — the same 1024px boundary as the CSS lg: breakpoint. Sweep-based
+    tests must skip under it: there is no runway to scroll. */
+export const DESKTOP_LAYOUT_WIDTH = 1024
+
 /**
  * Navigate with the app's deterministic test mode on, and wait until the page
  * is actually painted the way a screenshot needs it: webfonts swapped in

@@ -153,6 +153,26 @@ const MIN_DISTANCE = 110
  */
 const PROFILE_DISTANCE_SCALE = 0.8
 
+/**
+ * Camera standing distance for a viewport aspect — the master framing solve,
+ * shared by the rig and the fog so the two can never disagree about where the
+ * vessel stands.
+ *
+ * The aspect is clamped to 1: on a portrait phone the width is the scarce
+ * dimension, and solving the 44% fraction against it pushed the camera to
+ * ~395 units — beyond FOG_FAR, which is why the vessel used to render as a
+ * barely-there ghost on mobile. Clamping makes portrait fit against height
+ * instead, so the hull spans most of the narrow frame and the camera stays
+ * near the visible range.
+ */
+function standingDistance(aspect: number, fraction: number = SHIP_FRACTION): number {
+  const fit =
+    FRAMING_EXTENT /
+    (2 * fraction) /
+    (Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * Math.max(aspect, 1))
+  return Math.max(fit, MIN_DISTANCE)
+}
+
 /* Longitudinal travel used to be a fixed choreography here (amidships → stern
    → bow). It is now derived from the systems themselves — see focusTarget in
    ./systems, which walks the camera from anchor to anchor so it settles on
@@ -165,6 +185,31 @@ const LEFT_SHIFT = 0.22
 /** Same trick on the vertical axis: panning the projection down lifts the
     vessel up the frame. Raise to lift further, negative to drop it. */
 const UP_SHIFT = 0.08
+
+/** Where the mobile explorer layout takes over. The same 1024px the CSS lg:
+    breakpoint uses, so the camera's idea of the layout always matches the one
+    on screen. Below it the canvas is a sticky strip at the top of the page and
+    the systems are a tap-driven list, not a scroll sweep. */
+const MOBILE_LAYOUT_WIDTH = 1024
+
+/** Ship fraction for the mobile strip. The strip is the vessel's whole stage —
+    there is no side column to clear — so the hull earns a far larger share of
+    the frame than the desktop's 44%. */
+const MOBILE_SHIP_FRACTION = 0.72
+
+/**
+ * The right-hand column the intro and the diagrams share, so the eye stays put
+ * when one hands over to the other. Desktop-only: the mobile explorer renders
+ * the same content in normal flow instead of floating it over the scene.
+ *
+ * Width is driven by vw rather than a fixed rem so it holds its share of the
+ * frame on a large display: a flat cap made the panel read as a postage stamp
+ * at 2560px and wider. The lower bound keeps the diagrams legible just past the
+ * lg breakpoint, the upper one stops an ultrawide from handing the panel more
+ * width than the drawings can fill.
+ */
+const PANEL_COLUMN =
+  'hidden fixed z-40 lg:block lg:top-1/2 lg:right-10 lg:w-[clamp(28rem,45vw,64rem)] lg:-translate-y-1/2'
 
 /**
  * Snap stops: an opening frame, one per system, and a closing frame.
@@ -314,7 +359,14 @@ const SEA_WAVES = [
 
 /** Fog hides the hard outer edge of the grid — without it the sea ends in a
     visible rectangle on the horizon in the profile view. It also fades the far
-    end of the hull when viewed down its length, which reads as depth. */
+    end of the hull when viewed down its length, which reads as depth.
+
+    These are tuned against a standing distance of MIN_DISTANCE. They are NOT
+    used as-is: SceneFog shifts the whole window out by however far past
+    MIN_DISTANCE the camera actually stands, so a viewport whose solve puts the
+    camera further back keeps the same depth relationship instead of pushing
+    the vessel into the fog — at portrait aspects the old fixed window sat
+    entirely in front of the hull and erased it. */
 const FOG_NEAR = 140
 const FOG_FAR = 380
 
@@ -706,6 +758,23 @@ function ProgressDriver({
   return null
 }
 
+/** The framing fraction for a canvas of this width — the strip stage gets the
+    larger mobile share. Canvas width, not window width: the two coincide on
+    mobile (the strip is full-bleed) and the desktop canvas is the viewport. */
+function shipFraction(width: number): number {
+  return width < MOBILE_LAYOUT_WIDTH ? MOBILE_SHIP_FRACTION : SHIP_FRACTION
+}
+
+/** Fog whose window tracks the camera's standing distance — see the note on
+    FOG_NEAR. Additive rather than proportional: the depth of the window is
+    part of the look, only its position follows the camera out. */
+function SceneFog() {
+  const size = useThree((s) => s.size)
+  const shift =
+    standingDistance(size.width / size.height, shipFraction(size.width)) - MIN_DISTANCE
+  return <fog attach="fog" args={[COLOR.navy950, FOG_NEAR + shift, FOG_FAR + shift]} />
+}
+
 function CameraRig({ progress }: { progress: Progress }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera
   const size = useThree((s) => s.size)
@@ -717,11 +786,14 @@ function CameraRig({ progress }: { progress: Progress }) {
     camera.fov = FOV
     // Pan the projection right and down, which sits the subject left and high
     // in the frame — without rotating the camera and skewing the views.
+    // Desktop-only: the mobile strip IS the vessel's whole stage, so the
+    // subject stays centred in it and no pan is wanted.
+    const mobile = size.width < MOBILE_LAYOUT_WIDTH
     camera.setViewOffset(
       size.width,
       size.height,
-      size.width * LEFT_SHIFT,
-      size.height * UP_SHIFT,
+      mobile ? 0 : size.width * LEFT_SHIFT,
+      mobile ? 0 : size.height * UP_SHIFT,
       size.width,
       size.height,
     )
@@ -761,13 +833,11 @@ function CameraRig({ progress }: { progress: Progress }) {
     // genuinely grows as it turns broadside and shows its full length, which
     // is what a camera circling a real vessel at constant range would see.
     // Still solved against aspect, so the opening shot frames identically on
-    // any viewport.
-    const aspect = size.width / size.height
-    const fit =
-      FRAMING_EXTENT / (2 * SHIP_FRACTION) / (Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * aspect)
+    // any viewport — see standingDistance for the portrait clamp.
     // Push in toward the profile, back out at both three-quarter views.
     const closeIn = THREE.MathUtils.lerp(1, PROFILE_DISTANCE_SCALE, Math.sin(Math.PI * p))
-    const distance = Math.max(fit, MIN_DISTANCE) * closeIn
+    const distance =
+      standingDistance(size.width / size.height, shipFraction(size.width)) * closeIn
 
     // The rig now tracks the system being annotated, rather than following a
     // fixed choreography: the look-at walks amidships -> 01 -> 02 -> ... -> 09,
@@ -796,7 +866,7 @@ function SystemPanel({ spec }: { spec: SystemSpec }) {
     // that budget is the fixed header, which a vertically-centred panel would
     // otherwise slide under on a short screen.
     <div className="border-navy-800 bg-navy-950/90 max-h-[52dvh] overflow-y-auto rounded-lg border p-4 backdrop-blur-sm lg:max-h-[calc(100dvh-9rem)] lg:p-6">
-      <p className="text-signal-500/80 font-mono text-[10px] tracking-[0.2em]">
+      <p className="text-signal-500/80 font-mono text-[0.625rem] tracking-[0.2em]">
         {spec.index} / {String(SYSTEMS.length).padStart(2, '0')}
       </p>
       <h2 className="mt-1.5 text-base font-semibold text-white lg:text-lg">{spec.title}</h2>
@@ -806,6 +876,84 @@ function SystemPanel({ spec }: { spec: SystemSpec }) {
       {/* The blurb is the first thing to go when space is tight — the diagram
           carries more meaning per pixel than the prose does. */}
       <p className="text-navy-300 mt-3 hidden text-xs leading-relaxed sm:block">{spec.blurb}</p>
+    </div>
+  )
+}
+
+/**
+ * The mobile home: an instrument panel, not a scroll ride.
+ *
+ * The vessel sits pinned in the strip above; these rows are the controls.
+ * Tapping one writes that system's `at` into the progress target — the exact
+ * value the desktop sweep would reach by scrolling there — and the shared
+ * easing flies the camera over while the row expands its diagram in place.
+ * Everything downstream of the target (camera, node pulses, fog) is reused
+ * untouched; taps and scroll are just two authors of the same number.
+ */
+function MobileSystemsExplorer({
+  target,
+  intro,
+}: {
+  target: { current: number }
+  intro?: ReactNode
+}) {
+  const [open, setOpen] = useState(-1)
+
+  const select = (i: number) => {
+    const next = open === i ? -1 : i
+    setOpen(next)
+    target.current = next === -1 ? 0 : SYSTEMS[next].at
+  }
+
+  return (
+    <div data-testid="systems-explorer">
+      {intro && <div className="px-4 pt-6 sm:px-8">{intro}</div>}
+
+      <ul className="px-4 pt-4 pb-10 sm:px-8">
+        {SYSTEMS.map((spec, i) => {
+          const active = open === i
+          return (
+            <li key={spec.index} className="border-navy-800/70 border-b">
+              <button
+                type="button"
+                onClick={() => select(i)}
+                aria-expanded={active}
+                className="flex min-h-14 w-full items-center gap-4 py-2 text-left"
+              >
+                <span
+                  className={`font-mono text-xs ${active ? 'text-signal-400' : 'text-signal-500/60'}`}
+                >
+                  {spec.index}
+                </span>
+                <span
+                  className={`flex-1 text-base ${active ? 'font-medium text-white' : 'text-navy-200'}`}
+                >
+                  {spec.title}
+                </span>
+                {/* Chevron rotates to read as open/closed — the only state cue
+                    that survives a glance while the camera is still flying. */}
+                <svg
+                  viewBox="0 0 16 16"
+                  className={`text-navy-400 size-4 shrink-0 transition-transform ${active ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  aria-hidden="true"
+                >
+                  <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {active && (
+                <div className="pb-6" data-testid="explorer-diagram">
+                  <spec.Diagram />
+                  <p className="text-navy-300 mt-4 text-sm leading-relaxed">{spec.blurb}</p>
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
@@ -850,16 +998,62 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
   const [webgl, setWebgl] = useState(false)
   const [still, setStill] = useState(E2E)
 
+  // Which home presentation is live: the desktop scroll sweep or the mobile
+  // tap explorer. React state rather than CSS hiding, because the two render
+  // the SAME content (the intro with its h1, the system diagrams) and only
+  // one copy may exist in the DOM at a time.
+  const [mobileLayout, setMobileLayout] = useState(
+    () => window.innerWidth < MOBILE_LAYOUT_WIDTH,
+  )
+  useEffect(() => {
+    const desktop = window.matchMedia(`(min-width: ${MOBILE_LAYOUT_WIDTH}px)`)
+    const sync = () => {
+      setMobileLayout(!desktop.matches)
+      // Crossing INTO mobile: nothing is tapped yet, and the last scroll-owned
+      // target would leave the camera parked mid-sweep with no UI explaining
+      // why. Crossing out is covered by the scroll handler re-measuring.
+      if (!desktop.matches) scrollTarget.current = 0
+    }
+    desktop.addEventListener('change', sync)
+    return () => desktop.removeEventListener('change', sync)
+  }, [])
+
   // Snapping is applied to the document element here rather than in index.css
   // so it belongs to this scene: the rest of the site scrolls normally, and
   // the setting is torn down when the hero unmounts on navigation.
+  //
+  // Desktop-only, tracked live: the mobile explorer scrolls a normal page, and
+  // mandatory snapping with no runway on screen would glue it to the top.
   useEffect(() => {
     const root = document.documentElement
     const previous = root.style.scrollSnapType
-    root.style.scrollSnapType = 'y mandatory'
+    const desktop = window.matchMedia(`(min-width: ${MOBILE_LAYOUT_WIDTH}px)`)
+    const sync = () => {
+      root.style.scrollSnapType = desktop.matches ? 'y mandatory' : previous
+    }
+    sync()
+    desktop.addEventListener('change', sync)
     return () => {
+      desktop.removeEventListener('change', sync)
       root.style.scrollSnapType = previous
     }
+  }, [])
+
+  /**
+   * Height of the footer, used to lift it into the closing frame.
+   *
+   * Measured rather than assumed: the footer rewraps at every breakpoint, and a
+   * hardcoded figure would leave a gap on one viewport and clip it on another.
+   * Observed, not read once, because the webfonts land after first paint and
+   * reflow it.
+   */
+  const [footerHeight, setFooterHeight] = useState(0)
+  useEffect(() => {
+    const footer = document.querySelector('footer')
+    if (!footer) return
+    const observer = new ResizeObserver(() => setFooterHeight(footer.offsetHeight))
+    observer.observe(footer)
+    return () => observer.disconnect()
   }, [])
 
   useEffect(() => {
@@ -895,10 +1089,16 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
       const travel = panelHeight * (SNAP_STOPS - 1)
       const scrolled = -el.getBoundingClientRect().top
 
+      // On the mobile explorer the runway is display:none, so travel measures
+      // zero. Returning — rather than writing 0 — is what hands the target to
+      // the tap handlers: scroll fires constantly while the list scrolls, and
+      // writing here would yank the camera home mid-flight on every frame.
+      if (travel <= 0) return
+
       // Only the TARGET is written here. ProgressDriver eases the scene toward
       // it each frame, so a hard snap correction becomes a glide instead of a
       // jump. Everything downstream reads the eased value, never this one.
-      scrollTarget.current = travel <= 0 ? 0 : THREE.MathUtils.clamp(scrolled / travel, 0, 1)
+      scrollTarget.current = THREE.MathUtils.clamp(scrolled / travel, 0, 1)
     }
 
     update()
@@ -917,13 +1117,28 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
 
   return (
     <>
-      {/* Fixed, so the vessel never leaves the viewport.
-          `-z-10` is deliberate: a fixed element at z-0 creates a stacking
-          context and would paint OVER the page's static content. A negative
-          index still paints above the body background, so the vessel sits
-          behind the copy rather than on top of it. */}
+      {/* Two lives, one canvas.
+
+          Desktop: fixed and full-viewport, so the vessel never leaves the
+          screen during the sweep. `-z-10` is deliberate: a fixed element at
+          z-0 creates a stacking context and would paint OVER the page's static
+          content, while a negative index still paints above the body
+          background.
+
+          Mobile: a sticky strip at the top of a normally-scrolling page — the
+          instrument-panel stage the tap-driven list flies the camera around
+          in. `z-10` here for the opposite reason the desktop is negative: the
+          canvas clears opaque navy, and the list is MEANT to slide away
+          beneath it. One element rather than two branches because a second
+          Canvas would be a second WebGL context and a second copy of the
+          model. */}
       <div
-        className="pointer-events-none fixed inset-0 -z-10"
+        // NOT pointer-events-none on mobile: rows scrolled under the opaque
+        // strip are still in the hit-test tree, and a transparent strip would
+        // forward taps to buttons the user cannot see. The strip swallows
+        // them. Desktop turns interaction off — the layer is fixed under the
+        // whole page and must never intercept clicks meant for the content.
+        className="border-navy-800 sticky top-0 z-10 h-[45dvh] border-b lg:pointer-events-none lg:fixed lg:inset-0 lg:-z-10 lg:h-auto lg:border-b-0"
         role="img"
         aria-label={label}
       >
@@ -946,7 +1161,7 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
             readoutEl={readout}
             onSystemChange={handleSystemChange}
           />
-          <fog attach="fog" args={[COLOR.navy950, FOG_NEAR, FOG_FAR]} />
+          <SceneFog />
           <Suspense fallback={null}>
             <Vessel still={still}>
               {SYSTEMS.map((spec, i) => (
@@ -965,20 +1180,28 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
         </Canvas>
       </div>
 
+      {/* In flow directly under the sticky strip: the intro and the tappable
+          system list scroll beneath the pinned vessel. */}
+      {mobileLayout && <MobileSystemsExplorer target={scrollTarget} intro={intro} />}
+
       {/* One label per system, pinned to its node. `left/top: 0` with a
           transform written each frame — transforms are composited, so tracking
-          the node costs nothing, whereas animating left/top forces layout. */}
+          the node costs nothing, whereas animating left/top forces layout.
+          Desktop-only: the transform maps canvas coordinates to the viewport,
+          which only agree while the canvas IS the viewport — on the strip the
+          chip would land somewhere unrelated, and the explorer row already
+          names the active system anyway. */}
       {SYSTEMS.map((spec, i) => (
         <div
           key={spec.index}
           ref={(el) => {
             labelEls.current[i] = el
           }}
-          className="pointer-events-none fixed top-0 left-0 z-40 opacity-0"
+          className="pointer-events-none fixed top-0 left-0 z-40 hidden opacity-0 lg:block"
           style={{ willChange: 'transform' }}
           aria-hidden="true"
         >
-          <div className="border-signal-400/50 bg-navy-950/85 text-signal-300 -translate-y-1/2 translate-x-4 rounded border px-2 py-1 font-mono text-[10px] tracking-[0.14em] whitespace-nowrap uppercase">
+          <div className="border-signal-400/50 bg-navy-950/85 text-signal-300 -translate-y-1/2 translate-x-4 rounded border px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] whitespace-nowrap uppercase">
             {spec.title}
           </div>
         </div>
@@ -987,25 +1210,27 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
       {/* Company intro, holding the first stop before any system appears.
           Sits in the same right-hand column the diagrams use, so the eye does
           not have to move when the first system takes over from it. */}
-      {intro && (
+      {!mobileLayout && intro && (
         <div
           ref={introEl}
           data-testid="hero-intro"
-          className="fixed inset-x-3 bottom-3 z-40 lg:inset-x-auto lg:top-1/2 lg:right-10 lg:bottom-auto lg:w-[min(28rem,40vw)] lg:-translate-y-1/2"
+          className={PANEL_COLUMN}
         >
           {intro}
         </div>
       )}
 
       {/* The diagram carries the technical content the model cannot. */}
-      <div
-        ref={panelEl}
-        data-testid="system-panel"
-        className="pointer-events-none fixed inset-x-3 bottom-3 z-40 opacity-0 lg:inset-x-auto lg:top-1/2 lg:right-10 lg:bottom-auto lg:w-[min(28rem,40vw)] lg:-translate-y-1/2"
-        aria-hidden="true"
-      >
-        {activeSystem >= 0 && <SystemPanel spec={SYSTEMS[activeSystem]} />}
-      </div>
+      {!mobileLayout && (
+        <div
+          ref={panelEl}
+          data-testid="system-panel"
+          className={`pointer-events-none opacity-0 ${PANEL_COLUMN}`}
+          aria-hidden="true"
+        >
+          {activeSystem >= 0 && <SystemPanel spec={SYSTEMS[activeSystem]} />}
+        </div>
+      )}
 
       {/* Sits outside the vessel layer: that one is at -z-10 and would put the
           readout behind the page background. */}
@@ -1027,11 +1252,42 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
           The wrapper is measured every frame to derive progress — see update(). */}
       {/* data-scroll-stops is the tests' handle on the runway: they scroll to
           container top + i × viewport to land exactly on stop i. */}
-      <div ref={stops} data-scroll-stops aria-hidden="true">
+      {/* The negative bottom margin lifts the footer into the lower part of the
+          closing frame, so arriving at 100% arrives at the footer instead of
+          leaving one more empty scroll to find it.
+
+          A margin is what makes this safe. Progress is derived from this
+          container's offsetHeight and its rect top (see update()), and a margin
+          changes neither — so every snap point stays exactly on its system. The
+          stops themselves must never be resized to achieve this: offsetHeight
+          is divided by SNAP_STOPS on the assumption they are uniform.
+
+          It also squares the document off: the footer no longer adds height
+          past the runway, so maximum scroll now coincides with the last stop. */}
+      {/* Desktop-only: the explorer page has no sweep and therefore no runway.
+          display:none collapses offsetHeight to zero, which is exactly the
+          signal update() reads to leave the tap-owned target alone. */}
+      <div
+        ref={stops}
+        data-scroll-stops
+        aria-hidden="true"
+        className="hidden lg:block"
+        style={{ marginBottom: -footerHeight }}
+      >
         {Array.from({ length: SNAP_STOPS }, (_, i) => (
           <div key={i} className="h-screen" style={{ scrollSnapAlign: 'start' }} />
         ))}
       </div>
+
+      {/* A resting place for the document tail.
+
+          `y mandatory` means the scroller must always come to rest ON a snap
+          target. With the footer lifted above, the last stop normally IS the
+          document bottom and this is redundant — but it stops the page springing
+          back to stop 10 in the one case where that stops being true: a footer
+          taller than the closing frame, which pushes maximum scroll past the
+          last stop again and would strand the overflow below the fold. */}
+      <div aria-hidden="true" style={{ scrollSnapAlign: 'start' }} />
     </>
   )
 }

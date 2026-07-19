@@ -224,11 +224,12 @@ function HeroIntro() {
   const { t } = useI18n()
 
   return (
-    // Height is the binding constraint, not width: this sits in a fixed
-    // overlay, so anything taller than the viewport is simply lost. The cap
-    // leaves 4rem for the header that a centred panel would otherwise slide
-    // under, and the type steps down rather than the panel growing.
-    <div className="border-navy-800 bg-navy-950/90 max-h-[62dvh] overflow-y-auto rounded-lg border p-5 backdrop-blur-sm lg:max-h-[calc(100dvh-9rem)] lg:p-7">
+    // On desktop this sits in a fixed overlay, where height is the binding
+    // constraint: anything taller than the viewport is simply lost, so the
+    // cap leaves 4rem for the header a centred panel would slide under. On
+    // mobile the card is in normal flow under the vessel strip — the page
+    // scrolls, so capping and inner-scrolling it would just nest scrollbars.
+    <div className="border-navy-800 bg-navy-950/90 rounded-lg border p-5 backdrop-blur-sm lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:p-7">
       <p className="eyebrow mb-3">{t.hero.eyebrow}</p>
       <h1 className="text-h2 font-semibold text-balance text-white">
         {t.hero.title} <span className="text-signal-400 block">{t.hero.titleAccent}</span>
@@ -246,8 +247,10 @@ function HeroIntro() {
       </div>
 
       {/* Stats are the least load-bearing part, so they are the first to go
-          on short screens where the panel would otherwise overflow. */}
-      <dl className="border-navy-800 mt-6 hidden grid-cols-2 gap-x-5 gap-y-3 border-t pt-5 [@media(min-height:820px)]:grid">
+          on short screens where the overlay would otherwise overflow. That
+          budget only exists on desktop — in the mobile flow (max-lg) they
+          always show, whatever the screen height. */}
+      <dl className="border-navy-800 mt-6 hidden grid-cols-2 gap-x-5 gap-y-3 border-t pt-5 max-lg:grid [@media(min-height:820px)]:grid">
         {t.hero.stats.map((stat) => (
           <div key={stat.label} className="flex flex-col-reverse">
             <dt className="text-navy-400 mt-0.5 text-xs">{stat.label}</dt>
