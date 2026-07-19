@@ -91,11 +91,21 @@ export function Header() {
             {t.emergency.phone}
           </a>
 
-          <LanguageSwitcher className="hidden sm:inline-flex" />
+          {/* Both are wrapped rather than handed `hidden` directly: each has
+              inline-flex in its own base classes, and cn is a plain join — the
+              conflicting display utilities tie and the stylesheet's later one
+              (inline-flex) wins, so the `hidden` never took effect and the
+              phone bar showed everything at once. A wrapper has no display
+              class of its own to fight the breakpoint. */}
+          <div className="hidden sm:block">
+            <LanguageSwitcher />
+          </div>
 
-          <ButtonLink to={ROUTES.contact} size="md" className="hidden lg:inline-flex">
-            {t.nav.contact}
-          </ButtonLink>
+          <div className="hidden lg:block">
+            <ButtonLink to={ROUTES.contact} size="md">
+              {t.nav.contact}
+            </ButtonLink>
+          </div>
 
           <a
             href={telHref(t.emergency.phone)}
