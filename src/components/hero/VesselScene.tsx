@@ -12,6 +12,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { E2E } from '@/lib/e2e'
+import { markVesselReady } from '@/lib/vesselReady'
 import { HeroSeaScene } from './HeroSeaScene'
 import {
   SYSTEMS,
@@ -196,6 +197,66 @@ const MOBILE_LAYOUT_WIDTH = 1024
     there is no side column to clear — so the hull earns a far larger share of
     the frame than the desktop's 44%. */
 const MOBILE_SHIP_FRACTION = 0.72
+
+/**
+ * The mobile strip's two heights.
+ *
+ * It used to be one: a flat 45dvh, held for the entire 3,500px of scroll. That
+ * is nearly half the screen given up on every one of four-and-a-bit screenfuls,
+ * to a picture that changes only slowly — and the text was left reading through
+ * a letterbox.
+ *
+ * So the strip now plays its two roles at two sizes. At the top of the page it
+ * is the hero and takes the room a hero should. Once the reader has started
+ * moving through the systems it becomes a reference — still pinned, still
+ * tracking the section being read, but no longer the主 subject — and hands the
+ * screen back to the content.
+ */
+const MOBILE_STRIP_OPEN_VH = 60
+const MOBILE_STRIP_COLLAPSED_VH = 30
+
+/**
+ * ---------------------------------------------------------------------------
+ * THE STRIP RESIZES; THE CANVAS INSIDE IT NEVER DOES. That separation is not a
+ * detail — it is the whole reason this animates cleanly.
+ *
+ * Animating the canvas itself means R3F resizing the drawing buffer on every
+ * frame of the transition, and the buffer necessarily lags the CSS box by a
+ * frame: the last render gets stretched to a box it was not drawn for, so the
+ * vessel visibly pulses the whole way down. Sixty resizes of a WebGL surface is
+ * also real work for no gain.
+ *
+ * So the canvas is held at the OPEN height throughout and the strip is a
+ * shrinking window onto it, clipping what it cannot show. The canvas is
+ * simultaneously slid up by half of what the window loses, which keeps its
+ * centre — and so the vessel — in the middle of whatever is still visible.
+ * ---------------------------------------------------------------------------
+ */
+const MOBILE_STRIP_OPEN = `${MOBILE_STRIP_OPEN_VH}dvh`
+const MOBILE_STRIP_COLLAPSED = `${MOBILE_STRIP_COLLAPSED_VH}dvh`
+const MOBILE_CANVAS_LIFT = `${-(MOBILE_STRIP_OPEN_VH - MOBILE_STRIP_COLLAPSED_VH) / 2}dvh`
+
+/** Shared by the two transitions above. They must match exactly, or the canvas
+    drifts off centre part-way through the move. */
+const STRIP_EASE = '520ms cubic-bezier(0.4, 0, 0.2, 1)'
+
+/**
+ * Height of the fixed header, in px, which floats OVER the top of the strip
+ * rather than sitting above it.
+ *
+ * The camera centres the vessel in the canvas, and the canvas is the whole
+ * strip — including the band the header covers. At 60dvh that band is a tenth
+ * of the frame and no one notices; collapsed it is a fifth, and the hull sits
+ * behind the nav. The rig subtracts half of this from its vertical framing so
+ * the vessel is centred in the part of the strip that can actually be seen.
+ */
+const MOBILE_HEADER_PX = 64
+
+/** Scroll positions the strip changes size at, as a fraction of the viewport.
+    Two values, not one: a single threshold sitting exactly under the reader's
+    thumb would flap between the two heights on every small movement. */
+const STRIP_COLLAPSE_AT = 0.45
+const STRIP_EXPAND_AT = 0.25
 
 /**
  * The right-hand column the intro and the diagrams share, so the eye stays put
@@ -425,6 +486,9 @@ function Vessel({ still, children }: { still: boolean; children?: ReactNode }) {
   useEffect(() => {
     if (!edges) return
     document.documentElement.dataset.vesselReady = '1'
+    // Same moment, for the intro curtain — which is covering exactly this wait
+    // and lifts as soon as there is a drawing behind it.
+    markVesselReady()
     return () => {
       delete document.documentElement.dataset.vesselReady
     }
@@ -810,11 +874,27 @@ function ProgressDriver({
   return null
 }
 
-/** The framing fraction for a canvas of this width — the strip stage gets the
-    larger mobile share. Canvas width, not window width: the two coincide on
-    mobile (the strip is full-bleed) and the desktop canvas is the viewport. */
-function shipFraction(width: number): number {
-  return width < MOBILE_LAYOUT_WIDTH ? MOBILE_SHIP_FRACTION : SHIP_FRACTION
+/**
+ * The framing fraction for a canvas of this size — the strip stage gets the
+ * larger mobile share. Canvas width, not window width: the two coincide on
+ * mobile (the strip is full-bleed) and the desktop canvas is the viewport.
+ *
+ * On mobile the fraction is scaled by the strip's aspect when the strip is
+ * taller than it is wide, and this is not cosmetic: standingDistance clamps
+ * aspect to 1, so a portrait frame is fitted against its HEIGHT. The vessel is
+ * a horizontal object in a frame whose height now changes (see
+ * MOBILE_STRIP_OPEN), and without this it is drawn 60/26ths larger when the
+ * strip opens — enough to push the bow off the side of the screen.
+ *
+ * Multiplying by width/height cancels that exactly: the span works out at the
+ * same share of the strip's WIDTH whatever its height, so the vessel keeps one
+ * size on screen and the strip's two states differ only in how much sea and sky
+ * they show. Above aspect 1 the solve is already fitting against width, and the
+ * fraction is left alone.
+ */
+function shipFraction(width: number, height: number): number {
+  if (width >= MOBILE_LAYOUT_WIDTH) return SHIP_FRACTION
+  return MOBILE_SHIP_FRACTION * Math.min(1, width / height)
 }
 
 /** Fog whose window tracks the camera's standing distance — see the note on
@@ -823,7 +903,7 @@ function shipFraction(width: number): number {
 function SceneFog() {
   const size = useThree((s) => s.size)
   const shift =
-    standingDistance(size.width / size.height, shipFraction(size.width)) - MIN_DISTANCE
+    standingDistance(size.width / size.height, shipFraction(size.width, size.height)) - MIN_DISTANCE
   return <fog attach="fog" args={[COLOR.navy950, FOG_NEAR + shift, FOG_FAR + shift]} />
 }
 
@@ -845,7 +925,10 @@ function CameraRig({ progress }: { progress: Progress }) {
       size.width,
       size.height,
       mobile ? 0 : size.width * LEFT_SHIFT,
-      mobile ? 0 : size.height * UP_SHIFT,
+      // Negative on mobile, where the sign is doing the opposite job: desktop
+      // lifts the vessel up the frame, while the strip pushes it DOWN, out from
+      // under the floating header. See MOBILE_HEADER_PX.
+      mobile ? -MOBILE_HEADER_PX / 2 : size.height * UP_SHIFT,
       size.width,
       size.height,
     )
@@ -889,7 +972,7 @@ function CameraRig({ progress }: { progress: Progress }) {
     // Push in toward the profile, back out at both three-quarter views.
     const closeIn = THREE.MathUtils.lerp(1, PROFILE_DISTANCE_SCALE, Math.sin(Math.PI * p))
     const distance =
-      standingDistance(size.width / size.height, shipFraction(size.width)) * closeIn
+      standingDistance(size.width / size.height, shipFraction(size.width, size.height)) * closeIn
 
     // The rig now tracks the system being annotated, rather than following a
     // fixed choreography: the look-at walks amidships -> 01 -> 02 -> ... -> 09,
@@ -962,11 +1045,9 @@ const FEED_FOCUS = 0.55
 function MobileSystemsFeed({
   target,
   active,
-  intro,
 }: {
   target: { current: number }
   active: number
-  intro?: ReactNode
 }) {
   const feed = useRef<HTMLOListElement>(null)
   const sections = useRef<Array<HTMLLIElement | null>>([])
@@ -1017,8 +1098,6 @@ function MobileSystemsFeed({
     // data-focus publishes the reading line for the layout test, which has to
     // place a section against it to assert the camera follows the reader.
     <div data-testid="systems-feed" data-focus={FEED_FOCUS}>
-      {intro && <div className="px-4 pt-6 sm:px-8">{intro}</div>}
-
       <ol ref={feed} className="px-4 pb-10 sm:px-8">
         {SYSTEMS.map((spec, i) => {
           const current = active === i
@@ -1079,6 +1158,7 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
   /** Where the scene is — eased toward the target by ProgressDriver. */
   const progress = useRef(0)
   const stops = useRef<HTMLDivElement>(null)
+  const strip = useRef<HTMLDivElement>(null)
   const readout = useRef<HTMLDivElement>(null)
   const panelEl = useRef<HTMLDivElement>(null)
   const introEl = useRef<HTMLDivElement>(null)
@@ -1117,6 +1197,32 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
     desktop.addEventListener('change', sync)
     return () => desktop.removeEventListener('change', sync)
   }, [])
+
+  // Whether the strip has handed the screen back to the content — see the note
+  // on MOBILE_STRIP_OPEN. Hysteresis between the two thresholds, so a reader
+  // hovering around the boundary does not sit through a resize on every nudge.
+  const [stripCollapsed, setStripCollapsed] = useState(false)
+  useEffect(() => {
+    if (!mobileLayout) return
+    const update = () => {
+      // Measured from the strip's own place in the page, not from the top of
+      // the document. The intro card now sits above it, so raw scrollY would
+      // have the vessel collapsing while it was still below the fold — shrunk
+      // before it had been seen at all. offsetTop is the strip's position in
+      // normal flow, which is exactly where it stops scrolling and sticks.
+      const base = strip.current?.offsetTop ?? 0
+      const y = window.scrollY - base
+      const vh = window.innerHeight
+      setStripCollapsed((was) => (was ? y > vh * STRIP_EXPAND_AT : y > vh * STRIP_COLLAPSE_AT))
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+    }
+  }, [mobileLayout])
 
   // Snapping is applied to the document element here rather than in index.css
   // so it belongs to this scene: the rest of the site scrolls normally, and
@@ -1217,6 +1323,16 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
 
   return (
     <>
+      {/* The intro card, ABOVE the vessel on mobile: the statement and the two
+          calls to action come first, and the vessel is what you scroll into.
+          (On desktop the intro is a fixed panel beside the scene instead — see
+          further down.) */}
+      {/* pt clears the fixed header, which floats over the top of the page.
+          It used to be the strip that started here, and a header lying over a
+          canvas costs nothing; a card is the first thing now, and at pt-6 its
+          eyebrow was hidden behind the nav. */}
+      {mobileLayout && intro && <div className="px-4 pt-24 sm:px-8">{intro}</div>}
+
       {/* Two lives, one canvas.
 
           Desktop: fixed and full-viewport, so the vessel never leaves the
@@ -1232,15 +1348,46 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
           element rather than two branches because a second Canvas would be a
           second WebGL context and a second copy of the model. */}
       <div
+        ref={strip}
         // NOT pointer-events-none on mobile: content scrolled under the
         // opaque strip is still in the hit-test tree, and a transparent strip
         // would forward taps to links the user cannot see. The strip swallows
         // them. Desktop turns interaction off — the layer is fixed under the
         // whole page and must never intercept clicks meant for the content.
-        className="border-navy-800 sticky top-0 z-10 h-[45dvh] border-b lg:pointer-events-none lg:fixed lg:inset-0 lg:-z-10 lg:h-auto lg:border-b-0"
+        className="border-navy-800 sticky top-0 z-10 overflow-hidden border-b lg:pointer-events-none lg:fixed lg:inset-0 lg:-z-10 lg:h-auto lg:overflow-visible lg:border-b-0"
+        // Height is inline and mobile-only: the desktop layer takes its size
+        // from inset-0 and must never be given one of these. overflow-hidden
+        // above is what makes this a WINDOW onto the canvas rather than a box
+        // that resizes it — see the note on MOBILE_STRIP_OPEN_VH.
+        style={
+          mobileLayout
+            ? {
+                height: stripCollapsed ? MOBILE_STRIP_COLLAPSED : MOBILE_STRIP_OPEN,
+                transition: `height ${STRIP_EASE}`,
+              }
+            : undefined
+        }
         role="img"
         aria-label={label}
       >
+        {/* The canvas holder. Fixed at the open height for the whole life of
+            the page, and slid up by half of what the window loses so the
+            vessel stays centred in what remains visible. Nothing here changes
+            the canvas's SIZE, which is the point. */}
+        <div
+          style={
+            mobileLayout
+              ? {
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  height: MOBILE_STRIP_OPEN,
+                  top: stripCollapsed ? MOBILE_CANVAS_LIFT : 0,
+                  transition: `top ${STRIP_EASE}`,
+                }
+              : { height: '100%' }
+          }
+        >
         <Canvas
           camera={{ position: [0, 240, 20], fov: FOV, far: 4000 }}
           // At 3x on a phone this is four times the fragments of 1.75x for no
@@ -1277,41 +1424,80 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
           <Waterplane still={still} />
           <CameraRig progress={progress} />
         </Canvas>
+        </div>
       </div>
 
-      {/* In flow directly under the sticky strip: the intro and the system
-          feed scroll beneath the pinned vessel, driving the camera as they
-          go. */}
+      {/* In flow directly under the sticky strip: the systems scroll beneath
+          the pinned vessel, driving the camera as they go. */}
       {mobileLayout && (
-        <MobileSystemsFeed target={scrollTarget} active={activeSystem} intro={intro} />
+        <MobileSystemsFeed target={scrollTarget} active={activeSystem} />
       )}
 
-      {/* One label per system, pinned to its node. `left/top: 0` with a
-          transform written each frame — transforms are composited, so tracking
-          the node costs nothing, whereas animating left/top forces layout.
+      {/* The labels, in a layer that is an exact copy of the strip's geometry.
+          It has to be: each label's position is written every frame in CANVAS
+          pixels, so the layer it lives in must sit where the canvas sits. On
+          mobile that is now a clipped window with the canvas slid up inside it,
+          and the label layer mirrors both — the same height, the same lift, the
+          same easing.
 
-          The transform is in canvas pixels against a viewport-fixed element,
-          so the two only agree while the canvas sits at the viewport origin.
-          Both layouts satisfy that: desktop's layer is inset-0, and the mobile
-          strip is sticky at top-0 with the header floating above it. */}
-      {SYSTEMS.map((spec, i) => (
+          Getting this from the shared constants rather than by eye also means
+          the labels cannot be left behind if the strip's sizes are retuned. And
+          the clip earns its keep on its own: the canvas overflows the strip
+          when collapsed, so without it a marker on the hidden part of the hull
+          would put its chip out over the article text. */}
+      <div
+        className={
+          mobileLayout
+            ? 'pointer-events-none fixed inset-x-0 top-0 z-40 overflow-hidden'
+            : 'pointer-events-none fixed inset-0 z-40'
+        }
+        style={
+          mobileLayout
+            ? {
+                height: stripCollapsed ? MOBILE_STRIP_COLLAPSED : MOBILE_STRIP_OPEN,
+                transition: `height ${STRIP_EASE}`,
+              }
+            : undefined
+        }
+        aria-hidden="true"
+      >
         <div
-          key={spec.index}
-          ref={(el) => {
-            labelEls.current[i] = el
-          }}
-          className="pointer-events-none fixed top-0 left-0 z-40 opacity-0"
-          style={{ willChange: 'transform' }}
-          aria-hidden="true"
+          style={
+            mobileLayout
+              ? {
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  height: MOBILE_STRIP_OPEN,
+                  top: stripCollapsed ? MOBILE_CANVAS_LIFT : 0,
+                  transition: `top ${STRIP_EASE}`,
+                }
+              : { height: '100%' }
+          }
         >
-          {/* Only the vertical centring lives here — the horizontal offset is
-              written each frame, since which side of the node the chip takes
-              depends on the room left in the canvas. */}
-          <div className="border-signal-400/50 bg-navy-950/85 text-signal-300 -translate-y-1/2 rounded border px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] whitespace-nowrap uppercase">
-            {spec.title}
-          </div>
+          {/* One label per system, pinned to its node. `left/top: 0` with a
+              transform written each frame — transforms are composited, so
+              tracking the node costs nothing, whereas animating left/top would
+              force layout. */}
+          {SYSTEMS.map((spec, i) => (
+            <div
+              key={spec.index}
+              ref={(el) => {
+                labelEls.current[i] = el
+              }}
+              className="absolute top-0 left-0 opacity-0"
+              style={{ willChange: 'transform' }}
+            >
+              {/* Only the vertical centring lives here — the horizontal offset
+                  is written each frame, since which side of the node the chip
+                  takes depends on the room left in the canvas. */}
+              <div className="border-signal-400/50 bg-navy-950/85 text-signal-300 -translate-y-1/2 rounded border px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] whitespace-nowrap uppercase">
+                {spec.title}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
 
       {/* Company intro, holding the first stop before any system appears.
           Sits in the same right-hand column the diagrams use, so the eye does

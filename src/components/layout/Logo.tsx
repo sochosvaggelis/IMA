@@ -1,4 +1,5 @@
 import { cn } from '@/lib/cn'
+import { COMPANY_NAME_LINES } from '@/lib/company'
 
 /**
  * Colourways of the company badge. `navy` is the artwork as supplied and is
@@ -23,12 +24,33 @@ const NATURAL = { width: 153, height: 160 }
 export function Logo({
   className,
   variant = 'signal',
+  name = 'flow',
 }: {
   className?: string
   variant?: keyof typeof SOURCES
+  /**
+   * What the spelled-out name does below `sm`. Above it, all three modes are
+   * identical and the name is simply part of the lockup.
+   *
+   *   flow    — stays in the lockup at every size. The footer, which has room.
+   *
+   *   compact — dropped entirely. The header: three lines of type pinned to the
+   *             top of every screen is ~128px of a phone's 844, carrying what
+   *             the badge already carries.
+   *
+   * THE CURTAIN'S MODE AND THE HEADER'S MUST STAY IN STEP. The landing is
+   * solved on the assumption that the two lockups are the same shape, and
+   * `flow` against `compact` is not. (The curtain still shows the name on a
+   * phone — it sets it as a line of its own, rather than hanging it off a
+   * lockup that is about to fly somewhere with no room for it.)
+   */
+  name?: 'flow' | 'compact'
 }) {
   return (
-    <span className={cn('inline-flex items-center gap-2.5', className)}>
+    // data-logo-mark marks the WHOLE lockup, badge and type together: the
+    // intro curtain flies its oversized copy of this onto it, and has to
+    // measure the same thing it is carrying or the landing is the wrong size.
+    <span data-logo-mark className={cn('inline-flex items-center gap-2.5', className)}>
       {/* Lives in public/, so the base path has to be applied at runtime:
           GitHub Pages serves this site from /IMA/ while dev serves from /.
           BASE_URL carries its own trailing slash in both modes. */}
@@ -57,9 +79,15 @@ export function Logo({
             small caps set in mono — but it is tighter than the 0.14em used
             elsewhere for micro-labels, since at this size that much letter
             spacing pushed the lockup wide enough to crowd the phone header. */}
-        <span className="text-navy-300 mt-1.5 flex flex-col gap-1 font-mono text-xs leading-none tracking-[0.1em] whitespace-nowrap uppercase">
-          <span>International</span>
-          <span>Marine Automations</span>
+        <span
+          className={cn(
+            'text-navy-300 mt-1.5 flex-col gap-1 font-mono text-xs leading-none tracking-[0.1em] whitespace-nowrap uppercase',
+            name === 'compact' ? 'hidden sm:flex' : 'flex',
+          )}
+        >
+          {COMPANY_NAME_LINES.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
         </span>
       </span>
     </span>
