@@ -3,6 +3,7 @@ import { useI18n } from '@/i18n/useI18n'
 import { ROUTES } from '@/routes'
 import { telHref } from '@/lib/contact'
 import { VesselScene } from '@/components/hero/VesselScene'
+import { HomeIntroCurtain } from '@/components/hero/IntroCurtain'
 import { Container } from '@/components/ui/Container'
 import { Section, SectionHeading } from '@/components/ui/Section'
 import { ButtonLink } from '@/components/ui/Button'
@@ -231,7 +232,9 @@ function HeroIntro() {
     // scrolls, so capping and inner-scrolling it would just nest scrollbars.
     <div className="border-navy-800 bg-navy-950/90 rounded-lg border p-5 backdrop-blur-sm lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:p-7">
       <p className="eyebrow mb-3">{t.hero.eyebrow}</p>
-      <h1 className="text-h2 font-semibold text-balance text-white">
+      {/* data-hero-title is the intro curtain's landing mark — the statement
+          opens full-screen and comes to rest here. */}
+      <h1 data-hero-title className="text-h2 font-semibold text-balance text-white">
         {t.hero.title} <span className="text-signal-400 block">{t.hero.titleAccent}</span>
       </h1>
       <p className="text-navy-300 mt-4 text-sm leading-relaxed">{t.hero.subtitle}</p>
@@ -274,6 +277,10 @@ export default function Home() {
 
   return (
     <>
+      {/* Covers the vessel's load, then hands the mark and the statement to
+          the places they hold for the rest of the visit. */}
+      <HomeIntroCurtain />
+
       {/* Fixed layer + its own scroll runway; renders behind everything. */}
       <VesselScene label={t.hero.sceneLabel} intro={<HeroIntro />} />
 

@@ -45,6 +45,21 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+
+    /* The scrollbar's space is reserved whether or not a bar is drawn, so the
+       layout width is the same on every page.
+
+       Without it, navigating from a page that scrolls to one that does not
+       moves everything centred or right-anchored sideways by half the bar's
+       width or all of it — the header lockup among them.
+
+       Note this does NOT cover `overflow: hidden` on the root: the gutter is
+       ignored once the root's overflow is hidden, so anything wanting to stop
+       the page scrolling has to do it without that (see the intro curtain,
+       which refuses the input events instead).
+
+       No-op on overlay-scrollbar platforms, which never had the problem. */
+    scrollbar-gutter: stable;
   }
 
   /* ----------------------------------------------------------------
@@ -152,6 +167,56 @@
      rules above stay px on purpose — hairlines should render as hairlines
      at every scale. */
   background-size: 3rem 3rem;
+}
+
+/* ------------------------------------------------------------------
+   Intro curtain
+
+   The entrance for the two pieces the curtain opens on. Deliberately a plain
+   CSS animation rather than a transition: it must run the instant the element
+   paints, with nothing in JS having to notice it is there. The EXIT is the
+   opposite — measured, so it lives in IntroCurtain.tsx.
+------------------------------------------------------------------ */
+.intro-rise {
+  animation: ima-intro-rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* While the curtain has the lockup and the statement in the air, the real ones
+   step aside — there is only ever one of each on screen, and what the eye
+   follows across the page is the thing that stays behind at the end of it.
+
+   Opacity, not visibility or display: the flight is solved against these
+   elements' bounding rects, and an element that is not laid out has no rect to
+   aim at. No transition either — the reveal is timed to the instant the
+   travelling piece comes to rest exactly on top, so there is nothing to ease. */
+[data-intro-owns-lockup] header [data-logo-mark],
+[data-intro-owns-lockup] [data-hero-title] {
+  opacity: 0;
+}
+
+/* The statement follows the mark in, rather than arriving with it — a beat
+   apart reads as a title sequence, together reads as a page that was slow. */
+.intro-rise-delayed {
+  animation-delay: 260ms;
+}
+
+@keyframes ima-intro-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.25rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Motion here is unprompted, so it goes: the pieces simply appear, and the
+   curtain still covers the load and still fades out. */
+@media (prefers-reduced-motion: reduce) {
+  .intro-rise {
+    animation: none;
+  }
 }
 
 /* ------------------------------------------------------------------

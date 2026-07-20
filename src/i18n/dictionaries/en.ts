@@ -31,7 +31,7 @@ export const en: Dictionary = {
   },
 
   hero: {
-    eyebrow: 'Electrical · Electronics · Automation',
+    eyebrow: 'Pneumatics · Electrical · Electronics · Automation',
     title: 'Your vessel is not waiting.',
     titleAccent: 'Neither are we.',
     subtitle:

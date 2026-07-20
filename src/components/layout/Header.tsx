@@ -3,7 +3,6 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useI18n } from '@/i18n/useI18n'
 import { ROUTES, type RouteKey } from '@/routes'
 import { cn } from '@/lib/cn'
-import { telHref } from '@/lib/contact'
 import { Logo } from './Logo'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { ButtonLink } from '@/components/ui/Button'
@@ -69,7 +68,9 @@ export function Header() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:h-18 lg:px-12">
         <Link to={ROUTES.home} aria-label="IMA">
-          <Logo />
+          {/* compact: see the note on the prop — the intro curtain passes the
+              same, and the two must not diverge. */}
+          <Logo name="compact" />
         </Link>
 
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Main">
@@ -81,16 +82,6 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Emergency number stays reachable at every breakpoint — it's the
-              single most valuable action on the site. */}
-          <a
-            href={telHref(t.emergency.phone)}
-            className="text-alert-500 hover:text-alert-600 hidden items-center gap-2 font-mono text-sm transition-colors md:inline-flex"
-          >
-            <span className="bg-alert-500 size-2 shrink-0 animate-pulse rounded-full" aria-hidden="true" />
-            {t.emergency.phone}
-          </a>
-
           {/* Both are wrapped rather than handed `hidden` directly: each has
               inline-flex in its own base classes, and cn is a plain join — the
               conflicting display utilities tie and the stylesheet's later one
@@ -106,16 +97,6 @@ export function Header() {
               {t.nav.contact}
             </ButtonLink>
           </div>
-
-          <a
-            href={telHref(t.emergency.phone)}
-            aria-label={t.emergency.cta}
-            className="bg-alert-600 text-navy-950 inline-flex size-11 items-center justify-center rounded-md md:hidden"
-          >
-            <svg viewBox="0 0 24 24" className="size-5" fill="currentColor" aria-hidden="true">
-              <path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.24 11.4 11.4 0 003.6.58 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.58 3.6a1 1 0 01-.25 1l-2.2 2.2z" />
-            </svg>
-          </a>
 
           <button
             type="button"
@@ -155,9 +136,6 @@ export function Header() {
 
         <div className="flex flex-col gap-4 px-5 pt-2 pb-10 sm:px-8">
           <LanguageSwitcher className="self-start sm:hidden" />
-          <ButtonLink to={telHref(t.emergency.phone)} variant="alert" size="lg">
-            {t.emergency.label} · {t.emergency.phone}
-          </ButtonLink>
         </div>
       </div>
     </header>

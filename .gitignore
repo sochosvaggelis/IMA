@@ -35,6 +35,9 @@ bulkCarrier/
 test-results/
 playwright-report/
 
+# Output of scripts/trace-intro.mjs — a measurement dump, regenerated on demand.
+logo-trace-*.csv
+
 # Local agent / editor state
 .claude/
 
