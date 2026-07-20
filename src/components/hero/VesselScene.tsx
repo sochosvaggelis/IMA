@@ -212,8 +212,8 @@ const MOBILE_SHIP_FRACTION = 0.72
  * tracking the section being read, but no longer the主 subject — and hands the
  * screen back to the content.
  */
-const MOBILE_STRIP_OPEN_VH = 60
-const MOBILE_STRIP_COLLAPSED_VH = 30
+const MOBILE_STRIP_OPEN_VH = 56
+const MOBILE_STRIP_COLLAPSED_VH = 40
 
 /**
  * ---------------------------------------------------------------------------
@@ -252,10 +252,29 @@ const STRIP_EASE = '520ms cubic-bezier(0.4, 0, 0.2, 1)'
  */
 const MOBILE_HEADER_PX = 64
 
-/** Scroll positions the strip changes size at, as a fraction of the viewport.
-    Two values, not one: a single threshold sitting exactly under the reader's
-    thumb would flap between the two heights on every small movement. */
-const STRIP_COLLAPSE_AT = 0.45
+/**
+ * Scroll past the strip at which it changes size, as MULTIPLES OF ITS OWN
+ * HEIGHT CHANGE. Two values, not one, so the state has hysteresis rather than a
+ * single threshold sitting under the reader's thumb.
+ *
+ * ---------------------------------------------------------------------------
+ * THE GAP BETWEEN THEM MUST EXCEED 1. That is not a stylistic margin, it is the
+ * condition for this being stable at all.
+ *
+ * Collapsing the strip reflows the page, and the browser's scroll anchoring
+ * responds by reducing scrollY by the height that disappeared — that is its
+ * job, holding the content still. But the trigger is measured FROM scrollY, so
+ * collapsing moves its own input by exactly the height delta. With the
+ * thresholds any closer together than that delta, the new value lands back past
+ * the expand threshold, which expands the strip, which moves scrollY back, and
+ * the strip oscillates between its two heights for as long as you sit there.
+ *
+ * Expressed in units of the delta, the invariant is visible and survives the
+ * heights being retuned: an earlier pass used fractions of the viewport
+ * (0.12 / 0.04, a 67px band against a 135px delta) and duly flapped.
+ * ---------------------------------------------------------------------------
+ */
+const STRIP_COLLAPSE_AT = 1.5
 const STRIP_EXPAND_AT = 0.25
 
 /**
@@ -425,6 +444,12 @@ const LABEL_GAP_REM = 1
 /** Smallest gap left between a label chip and the canvas edge. */
 const LABEL_EDGE_PX = 6
 
+/** How far above its node a chip sits on the mobile strip — see the placement
+    branch in SystemNode. Enough to clear the marker's ring at its widest (the
+    pulse reaches 2.6x) plus half the chip's own height, since the chip is
+    centred on this point. */
+const LABEL_ABOVE_PX = 24
+
 /** Fog hides the hard outer edge of the grid — without it the sea ends in a
     visible rectangle on the horizon in the profile view. It also fades the far
     end of the hull when viewed down its length, which reads as depth.
@@ -446,6 +471,12 @@ const COLOR = {
   navy900: '#0a1c2d',
   signal500: '#00b4d5',
   signal300: '#7ae4f3',
+  /* The system markers, and the only warm thing in the scene. The vessel, its
+     linework and the sea are all drawn in signal cyan, so a cyan marker had to
+     compete with the drawing it sits on; orange has nothing to compete with and
+     reads instantly as an annotation rather than as part of the ship. It is the
+     same alert-500 the emergency actions use. */
+  alert500: '#f49329',
 } as const
 
 type Progress = { current: number }
@@ -643,18 +674,37 @@ function SystemNode({
       const hidden =
         world.z > 1 || Math.abs(world.x) > 1 || Math.abs(world.y) > 1
 
-      // Horizontal placement, in canvas pixels. The chip sits to the RIGHT of
-      // its node by default; it swings to the left when that would overhang
-      // the canvas, and is clamped inside as a last resort — on a phone strip
-      // a long name ("Electric Motors & Drives") fits on neither side of a
-      // centred node, and a chip half off the edge is worse than one that has
-      // drifted a little from its ring.
+      // Placement, in canvas pixels.
       const x = (world.x * 0.5 + 0.5) * size.width
+      const y = (-world.y * 0.5 + 0.5) * size.height
       const w = chipWidth.current
       const gap = gapPx.current
-      let left = x + gap
+      const mobile = size.width < MOBILE_LAYOUT_WIDTH
+
+      let left: number
+      let top = y
+
+      if (mobile) {
+        // ABOVE the node, centred over it.
+        //
+        // Beside it does not work on a phone: the names are long ("Electric
+        // Motors & Drives") and the strip is narrow, so a chip fits on neither
+        // side of a node near the middle and ends up clamped back over the very
+        // ring it is labelling — hiding the thing it is pointing at.
+        //
+        // Clear of it vertically, the ring stays visible whatever the name's
+        // length, and the only cost is that a chip near the edge is clamped
+        // sideways, which moves it along the hull rather than over the marker.
+        left = w > 0 ? x - w / 2 : x
+        top = y - LABEL_ABOVE_PX
+      } else {
+        // Beside it: to the RIGHT by default, swinging left when that would
+        // overhang the canvas. There is room for both here.
+        left = x + gap
+        if (w > 0 && left + w > size.width - LABEL_EDGE_PX) left = x - gap - w
+      }
+
       if (w > 0) {
-        if (left + w > size.width - LABEL_EDGE_PX) left = x - gap - w
         left = THREE.MathUtils.clamp(
           left,
           LABEL_EDGE_PX,
@@ -662,9 +712,7 @@ function SystemNode({
         )
       }
 
-      label.style.transform = `translate3d(${left}px, ${
-        (-world.y * 0.5 + 0.5) * size.height
-      }px, 0)`
+      label.style.transform = `translate3d(${left}px, ${top}px, 0)`
       label.style.opacity = String(hidden ? 0 : active)
     }
   })
@@ -682,7 +730,7 @@ function SystemNode({
       <lineLoop geometry={inner} renderOrder={10}>
         <lineBasicMaterial
           ref={innerMat}
-          color={COLOR.signal300}
+          color={COLOR.alert500}
           transparent
           depthTest={false}
           depthWrite={false}
@@ -692,7 +740,7 @@ function SystemNode({
         <lineLoop geometry={outer} renderOrder={10}>
           <lineBasicMaterial
             ref={outerMat}
-            color={COLOR.signal300}
+            color={COLOR.alert500}
             transparent
             depthTest={false}
             depthWrite={false}
@@ -1015,16 +1063,28 @@ function SystemPanel({ spec }: { spec: SystemSpec }) {
   )
 }
 
-/** Where the reading line sits, as a fraction of viewport height. The section
-    spanning this line is the one being read, so it is the one the camera
-    shows.
-
-    It must land just below the 45dvh strip — inside the FIRST section clear of
-    it, which is the one a reader's eye is on. Dropping it to mid-screen looks
-    reasonable until the sections are short: at 0.62 with text-only sections
-    the line cleared the first one entirely and the vessel labelled a system
-    two headings further down than the one being read. */
-const FEED_FOCUS = 0.55
+/**
+ * Where the reading line sits, as a fraction of the space BELOW THE STRIP. The
+ * section spanning this line is the one being read, so it is the one the camera
+ * shows and the one the feed highlights.
+ *
+ * ---------------------------------------------------------------------------
+ * MEASURED FROM THE STRIP, NOT FROM THE VIEWPORT. It used to be 0.55 of the
+ * viewport — a fixed y of about 464px on a phone — chosen when the strip was a
+ * flat 45dvh. The strip now opens taller than that, so the line was landing
+ * BEHIND the vessel: a section was marked active at the moment it disappeared
+ * under the strip, which is the last moment it could be described as the one
+ * being read.
+ *
+ * Deriving it from the strip's own bottom edge makes it correct at every strip
+ * height by construction, including part-way through the collapse, and it can
+ * never again drift behind the vessel however the strip is retuned.
+ *
+ * Kept in the upper part of that space: a section should light up as it comes
+ * into the clear, not once it is halfway back out of view.
+ * ---------------------------------------------------------------------------
+ */
+const FEED_FOCUS = 0.3
 
 /**
  * The mobile home: a scrollytelling feed under the pinned vessel.
@@ -1045,9 +1105,14 @@ const FEED_FOCUS = 0.55
 function MobileSystemsFeed({
   target,
   active,
+  strip,
 }: {
   target: { current: number }
   active: number
+  /** The vessel strip, so the reading line can be placed below it — see
+      FEED_FOCUS. Its height changes as the page scrolls, so this is read live
+      on every event rather than measured once. */
+  strip: RefObject<HTMLDivElement | null>
 }) {
   const feed = useRef<HTMLOListElement>(null)
   const sections = useRef<Array<HTMLLIElement | null>>([])
@@ -1060,6 +1125,7 @@ function MobileSystemsFeed({
       // Anchors are re-measured every event rather than cached: fonts and
       // diagram layout land after first paint and move every section.
       const rect = wrap.getBoundingClientRect()
+
       const anchors: Array<[number, number]> = [[rect.top, 0]]
       sections.current.forEach((el, i) => {
         if (!el) return
@@ -1068,7 +1134,21 @@ function MobileSystemsFeed({
       })
       anchors.push([rect.bottom, 1])
 
-      const focus = window.innerHeight * FEED_FOCUS
+      // Below whatever the strip currently covers, and always ON SCREEN.
+      //
+      // Both ends of the clamp are load-bearing. Past the feed the strip has
+      // scrolled away and its bottom edge is negative, which would lift the
+      // line above the window. Before the feed — at the top of the page, with
+      // the intro card above it — the strip hangs BELOW the fold, and an
+      // unclamped line landed off the bottom of the screen, far enough down the
+      // feed to light up the first system while it was nowhere near being read.
+      const vh = window.innerHeight
+      const stripBottom = THREE.MathUtils.clamp(
+        strip.current?.getBoundingClientRect().bottom ?? 0,
+        0,
+        vh,
+      )
+      const focus = stripBottom + (vh - stripBottom) * FEED_FOCUS
       let p = anchors[anchors.length - 1][1]
       if (focus <= anchors[0][0]) {
         p = anchors[0][1]
@@ -1092,7 +1172,7 @@ function MobileSystemsFeed({
       window.removeEventListener('scroll', update, { capture: true })
       window.removeEventListener('resize', update)
     }
-  }, [target])
+  }, [target, strip])
 
   return (
     // data-focus publishes the reading line for the layout test, which has to
@@ -1159,6 +1239,8 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
   const progress = useRef(0)
   const stops = useRef<HTMLDivElement>(null)
   const strip = useRef<HTMLDivElement>(null)
+  /** The strip's position in normal flow — see the note where it is read. */
+  const stripFlowTop = useRef(0)
   const readout = useRef<HTMLDivElement>(null)
   const panelEl = useRef<HTMLDivElement>(null)
   const introEl = useRef<HTMLDivElement>(null)
@@ -1205,15 +1287,34 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
   useEffect(() => {
     if (!mobileLayout) return
     const update = () => {
-      // Measured from the strip's own place in the page, not from the top of
-      // the document. The intro card now sits above it, so raw scrollY would
-      // have the vessel collapsing while it was still below the fold — shrunk
-      // before it had been seen at all. offsetTop is the strip's position in
-      // normal flow, which is exactly where it stops scrolling and sticks.
-      const base = strip.current?.offsetTop ?? 0
-      const y = window.scrollY - base
-      const vh = window.innerHeight
-      setStripCollapsed((was) => (was ? y > vh * STRIP_EXPAND_AT : y > vh * STRIP_COLLAPSE_AT))
+      /**
+       * Measured from the strip's own place in the page, not from the top of
+       * the document. The intro card sits above it, so raw scrollY would have
+       * the vessel collapsing while it was still below the fold — shrunk before
+       * it had been seen at all.
+       *
+       * NOT offsetTop, which is the obvious way and is wrong here: on a sticky
+       * element it reports where the element currently IS, so once stuck it
+       * tracks scrollY exactly and `scrollY - offsetTop` sits at zero forever.
+       * The strip simply never collapsed.
+       *
+       * The flow position is instead taken from the rect while the strip is
+       * still above the fold, and held once it sticks. That also keeps it right
+       * across reflows of the card above — webfonts, a language switch — since
+       * it is refreshed on every event until the moment it pins.
+       */
+      const rect = strip.current?.getBoundingClientRect()
+      if (rect && rect.top > 0) stripFlowTop.current = rect.top + window.scrollY
+      const y = window.scrollY - stripFlowTop.current
+
+      // The height the strip gives up when it collapses — the same quantity
+      // scroll anchoring will subtract from scrollY when it does. Both
+      // thresholds are multiples of it; see STRIP_COLLAPSE_AT.
+      const delta =
+        ((MOBILE_STRIP_OPEN_VH - MOBILE_STRIP_COLLAPSED_VH) / 100) * window.innerHeight
+      setStripCollapsed((was) =>
+        was ? y > delta * STRIP_EXPAND_AT : y > delta * STRIP_COLLAPSE_AT,
+      )
     }
     update()
     window.addEventListener('scroll', update, { passive: true })
@@ -1331,7 +1432,7 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
           It used to be the strip that started here, and a header lying over a
           canvas costs nothing; a card is the first thing now, and at pt-6 its
           eyebrow was hidden behind the nav. */}
-      {mobileLayout && intro && <div className="px-4 pt-24 sm:px-8">{intro}</div>}
+      {mobileLayout && intro && <div className="px-4 pt-36 sm:px-8">{intro}</div>}
 
       {/* Two lives, one canvas.
 
@@ -1385,7 +1486,7 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
                   top: stripCollapsed ? MOBILE_CANVAS_LIFT : 0,
                   transition: `top ${STRIP_EASE}`,
                 }
-              : { height: '100%' }
+              : { position: 'relative', height: '100%' }
           }
         >
         <Canvas
@@ -1424,61 +1525,24 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
           <Waterplane still={still} />
           <CameraRig progress={progress} />
         </Canvas>
-        </div>
-      </div>
 
-      {/* In flow directly under the sticky strip: the systems scroll beneath
-          the pinned vessel, driving the camera as they go. */}
-      {mobileLayout && (
-        <MobileSystemsFeed target={scrollTarget} active={activeSystem} />
-      )}
+        {/* The labels live INSIDE the canvas holder, and that is the whole
+            trick: each one's position is written every frame in CANVAS pixels,
+            so putting them in the canvas's own box makes the two agree by
+            construction — at any strip height, mid-collapse, and wherever the
+            strip happens to sit on screen.
 
-      {/* The labels, in a layer that is an exact copy of the strip's geometry.
-          It has to be: each label's position is written every frame in CANVAS
-          pixels, so the layer it lives in must sit where the canvas sits. On
-          mobile that is now a clipped window with the canvas slid up inside it,
-          and the label layer mirrors both — the same height, the same lift, the
-          same easing.
+            They used to be a viewport-fixed layer that mirrored the strip's
+            height and the canvas's offset. That held only while the strip was
+            the first thing on the page and so always at the top. With the intro
+            card above it, the strip sits hundreds of pixels down until it
+            sticks — and the labels went on drawing at the top of the window,
+            stranded over the card.
 
-          Getting this from the shared constants rather than by eye also means
-          the labels cannot be left behind if the strip's sizes are retuned. And
-          the clip earns its keep on its own: the canvas overflows the strip
-          when collapsed, so without it a marker on the hidden part of the hull
-          would put its chip out over the article text. */}
-      <div
-        className={
-          mobileLayout
-            ? 'pointer-events-none fixed inset-x-0 top-0 z-40 overflow-hidden'
-            : 'pointer-events-none fixed inset-0 z-40'
-        }
-        style={
-          mobileLayout
-            ? {
-                height: stripCollapsed ? MOBILE_STRIP_COLLAPSED : MOBILE_STRIP_OPEN,
-                transition: `height ${STRIP_EASE}`,
-              }
-            : undefined
-        }
-        aria-hidden="true"
-      >
-        <div
-          style={
-            mobileLayout
-              ? {
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  height: MOBILE_STRIP_OPEN,
-                  top: stripCollapsed ? MOBILE_CANVAS_LIFT : 0,
-                  transition: `top ${STRIP_EASE}`,
-                }
-              : { height: '100%' }
-          }
-        >
-          {/* One label per system, pinned to its node. `left/top: 0` with a
-              transform written each frame — transforms are composited, so
-              tracking the node costs nothing, whereas animating left/top would
-              force layout. */}
+            The strip clips them too (overflow-hidden), so a marker on the part
+            of the hull the collapsed strip cannot show does not put its chip
+            out over the article text. */}
+        <div className="pointer-events-none absolute inset-0 z-40" aria-hidden="true">
           {SYSTEMS.map((spec, i) => (
             <div
               key={spec.index}
@@ -1488,16 +1552,23 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
               className="absolute top-0 left-0 opacity-0"
               style={{ willChange: 'transform' }}
             >
-              {/* Only the vertical centring lives here — the horizontal offset
-                  is written each frame, since which side of the node the chip
+              {/* Only the vertical centring lives here — the offset from the
+                  node is written each frame, since which side of it the chip
                   takes depends on the room left in the canvas. */}
-              <div className="border-signal-400/50 bg-navy-950/85 text-signal-300 -translate-y-1/2 rounded border px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] whitespace-nowrap uppercase">
+              <div className="border-alert-500/60 bg-navy-950/90 text-alert-500 -translate-y-1/2 rounded border px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] whitespace-nowrap uppercase">
                 {spec.title}
               </div>
             </div>
           ))}
         </div>
+        </div>
       </div>
+
+      {/* In flow directly under the sticky strip: the systems scroll beneath
+          the pinned vessel, driving the camera as they go. */}
+      {mobileLayout && (
+        <MobileSystemsFeed target={scrollTarget} active={activeSystem} strip={strip} />
+      )}
 
       {/* Company intro, holding the first stop before any system appears.
           Sits in the same right-hand column the diagrams use, so the eye does

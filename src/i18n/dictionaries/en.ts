@@ -35,7 +35,7 @@ export const en: Dictionary = {
     title: 'Your vessel is not waiting.',
     titleAccent: 'Neither are we.',
     subtitle:
-      'We repair marine electrical and automation systems — from a single burnt component on a board to the entire main switchboard. Alongside, underway, or in the yard.',
+      'We repair the marine electrical, electronics and automation systems others only replace — from a single burnt component to the entire main switchboard. Alongside, underway, or in the yard.',
     ctaPrimary: 'Report a breakdown',
     ctaSecondary: 'See what we cover',
     sceneLabel:
