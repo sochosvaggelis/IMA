@@ -66,7 +66,15 @@ export function Header() {
           : 'border-b border-transparent',
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:h-18 lg:px-12">
+      {/* Bar height is set against the LOCKUP, which is 3rem of badge drawn
+          edge to edge — the artwork bleeds to its own bounding box, so the
+          ring's outermost pixel is the image box and whatever is left over in
+          the bar is all the air the mark gets. At 4rem that was 8px top and
+          bottom, against a bar that draws its own border: the mark read as
+          wedged into it. These leave 16px on a phone and 20px from lg up.
+          KEEP THE MOBILE PANEL BELOW AND MOBILE_HEADER_PX (VesselScene) IN
+          STEP — both are this number written somewhere else. */}
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:h-22 lg:px-12">
         <Link to={ROUTES.home} aria-label="IMA">
           {/* compact: see the note on the prop — the intro curtain passes the
               same, and the two must not diverge. */}
@@ -115,7 +123,9 @@ export function Header() {
       <div
         id="mobile-nav"
         hidden={!open}
-        className="bg-navy-950/97 border-navy-800 h-[calc(100dvh-4rem)] overflow-y-auto border-t backdrop-blur-md lg:hidden"
+        // The 5rem is the bar's own h-20 above: the panel hangs under it and
+        // fills exactly what is left of the screen.
+        className="bg-navy-950/97 border-navy-800 h-[calc(100dvh-5rem)] overflow-y-auto border-t backdrop-blur-md lg:hidden"
       >
         <nav className="flex flex-col px-5 py-4 sm:px-8" aria-label="Mobile">
           {(['home', ...NAV_KEYS, 'contact'] as RouteKey[]).map((key) => (

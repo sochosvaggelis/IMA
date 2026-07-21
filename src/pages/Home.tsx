@@ -227,10 +227,10 @@ function HeroIntro() {
   return (
     // On desktop this sits in a fixed overlay, where height is the binding
     // constraint: anything taller than the viewport is simply lost, so the
-    // cap leaves 4rem for the header a centred panel would slide under. On
-    // mobile the card is in normal flow under the vessel strip — the page
-    // scrolls, so capping and inner-scrolling it would just nest scrollbars.
-    <div className="border-navy-800 bg-navy-950/90 rounded-lg border p-5 backdrop-blur-sm lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:p-7">
+    // cap leaves 5.5rem for the header (lg:h-22) a centred panel would slide
+    // under. On mobile the card is in normal flow under the vessel strip — the
+    // page scrolls, so capping and inner-scrolling it would just nest scrollbars.
+    <div className="border-navy-800 bg-navy-950/90 rounded-lg border p-5 backdrop-blur-sm lg:max-h-[calc(100dvh-10rem)] lg:overflow-y-auto lg:p-7">
       <p className="eyebrow mb-3">{t.hero.eyebrow}</p>
       {/* data-hero-title is the intro curtain's landing mark — the statement
           opens full-screen and comes to rest here. */}

@@ -211,6 +211,9 @@ const MOBILE_SHIP_FRACTION = 0.72
  * moving through the systems it becomes a reference — still pinned, still
  * tracking the section being read, but no longer the主 subject — and hands the
  * screen back to the content.
+ *
+ * These are the ends of a CONTINUOUS move, not two states — see the note on
+ * stripHeightFor.
  */
 const MOBILE_STRIP_OPEN_VH = 56
 const MOBILE_STRIP_COLLAPSED_VH = 40
@@ -233,12 +236,6 @@ const MOBILE_STRIP_COLLAPSED_VH = 40
  * ---------------------------------------------------------------------------
  */
 const MOBILE_STRIP_OPEN = `${MOBILE_STRIP_OPEN_VH}dvh`
-const MOBILE_STRIP_COLLAPSED = `${MOBILE_STRIP_COLLAPSED_VH}dvh`
-const MOBILE_CANVAS_LIFT = `${-(MOBILE_STRIP_OPEN_VH - MOBILE_STRIP_COLLAPSED_VH) / 2}dvh`
-
-/** Shared by the two transitions above. They must match exactly, or the canvas
-    drifts off centre part-way through the move. */
-const STRIP_EASE = '520ms cubic-bezier(0.4, 0, 0.2, 1)'
 
 /**
  * Height of the fixed header, in px, which floats OVER the top of the strip
@@ -249,33 +246,50 @@ const STRIP_EASE = '520ms cubic-bezier(0.4, 0, 0.2, 1)'
  * of the frame and no one notices; collapsed it is a fifth, and the hull sits
  * behind the nav. The rig subtracts half of this from its vertical framing so
  * the vessel is centred in the part of the strip that can actually be seen.
+ *
+ * MUST MATCH THE BAR'S OWN HEIGHT below lg — h-20 in Header.tsx. It is a number
+ * here because the camera solve needs one, which makes it the one copy that can
+ * silently fall out of step: too small and the vessel drifts back under the nav,
+ * too large and it sits low in the strip.
  */
-const MOBILE_HEADER_PX = 64
+const MOBILE_HEADER_PX = 80
 
 /**
- * Scroll past the strip at which it changes size, as MULTIPLES OF ITS OWN
- * HEIGHT CHANGE. Two values, not one, so the state has hysteresis rather than a
- * single threshold sitting under the reader's thumb.
+ * The strip's height for a given scroll past its own position in the page.
  *
  * ---------------------------------------------------------------------------
- * THE GAP BETWEEN THEM MUST EXCEED 1. That is not a stylistic margin, it is the
- * condition for this being stable at all.
+ * THE FEED PUSHES THE STRIP. The strip's bottom edge simply IS the top of the
+ * first section, for as long as that edge is above the collapsed floor: scroll
+ * a hundred pixels and the section rises a hundred pixels, closing the window
+ * on the vessel by the same amount. The vessel is squeezed by the content
+ * arriving under it, and only once it is down to its reference size does the
+ * feed start sliding beneath it instead.
  *
- * Collapsing the strip reflows the page, and the browser's scroll anchoring
- * responds by reducing scrollY by the height that disappeared — that is its
- * job, holding the content still. But the trigger is measured FROM scrollY, so
- * collapsing moves its own input by exactly the height delta. With the
- * thresholds any closer together than that delta, the new value lands back past
- * the expand threshold, which expands the strip, which moves scrollY back, and
- * the strip oscillates between its two heights for as long as you sit there.
+ * It used to be a two-state toggle across a threshold with hysteresis, which
+ * meant the strip stayed at its full height until the reader was already among
+ * the sections and then jumped — the shrink had no author on screen.
  *
- * Expressed in units of the delta, the invariant is visible and survives the
- * heights being retuned: an earlier pass used fractions of the viewport
- * (0.12 / 0.04, a 67px band against a 135px delta) and duly flapped.
+ * ---------------------------------------------------------------------------
+ * WHY THIS IS SAFE, WHERE THE TOGGLE NEEDED HYSTERESIS TO BE. The old version
+ * changed the strip's LAYOUT height, which reflows the page — and the browser's
+ * scroll anchoring answers a reflow by moving scrollY to hold the content
+ * still. The trigger was measured from scrollY, so collapsing moved its own
+ * input and the two heights could flap against each other indefinitely; the
+ * thresholds had to sit more than a height-delta apart to break the loop.
+ *
+ * Nothing here changes layout at all. The strip keeps a constant OPEN-height
+ * box in flow and only the WINDOW inside it is resized (see the strip markup),
+ * so the feed's document position never moves, scrollY is never touched, and
+ * `y` below is a pure input. That is also what makes the push read as one to
+ * one: the section rises only by what the reader scrolled, never by the shrink
+ * as well.
  * ---------------------------------------------------------------------------
  */
-const STRIP_COLLAPSE_AT = 1.5
-const STRIP_EXPAND_AT = 0.25
+function stripHeightFor(y: number, viewportHeight: number): number {
+  const open = (MOBILE_STRIP_OPEN_VH / 100) * viewportHeight
+  const collapsed = (MOBILE_STRIP_COLLAPSED_VH / 100) * viewportHeight
+  return THREE.MathUtils.clamp(open - y, collapsed, open)
+}
 
 /**
  * The right-hand column the intro and the diagrams share, so the eye stays put
@@ -326,9 +340,9 @@ const SNAP_STOPS = SYSTEMS.length + 2
  */
 const SCROLL_DAMPING = 6
 
-/** On-screen scroll readout for tuning the sweep. Flip to false to hide it —
-    this is a development aid and should not ship. */
-const DEBUG_SCROLL = true
+/** On-screen scroll readout for tuning the sweep. Flip to true while dialling
+    the sweep in — it is a development aid and does not ship. */
+const DEBUG_SCROLL = false
 
 /**
  * Seakeeping. Amplitudes are small and periods are long on purpose — a laden
@@ -1045,10 +1059,10 @@ function CameraRig({ progress }: { progress: Progress }) {
 function SystemPanel({ spec }: { spec: SystemSpec }) {
   const { Diagram } = spec
   return (
-    // max-h keeps the panel inside the viewport whatever its content: 4rem of
-    // that budget is the fixed header, which a vertically-centred panel would
-    // otherwise slide under on a short screen.
-    <div className="border-navy-800 bg-navy-950/90 max-h-[52dvh] overflow-y-auto rounded-lg border p-4 backdrop-blur-sm lg:max-h-[calc(100dvh-9rem)] lg:p-6">
+    // max-h keeps the panel inside the viewport whatever its content: 5.5rem of
+    // that budget is the fixed header (lg:h-22), which a vertically-centred
+    // panel would otherwise slide under on a short screen. Raised with the bar.
+    <div className="border-navy-800 bg-navy-950/90 max-h-[52dvh] overflow-y-auto rounded-lg border p-4 backdrop-blur-sm lg:max-h-[calc(100dvh-10rem)] lg:p-6">
       <p className="text-signal-500/80 font-mono text-[0.625rem] tracking-[0.2em]">
         {spec.index} / {String(SYSTEMS.length).padStart(2, '0')}
       </p>
@@ -1087,6 +1101,50 @@ function SystemPanel({ spec }: { spec: SystemSpec }) {
 const FEED_FOCUS = 0.3
 
 /**
+ * The opening leg — amidships out to system 01 — measured in scroll past the
+ * moment the strip pins, as a fraction of the viewport.
+ *
+ * ---------------------------------------------------------------------------
+ * THIS EXISTS SO THE OPENING LEG COSTS NO LAYOUT. Progress is interpolated
+ * between anchors, and the feed's opening anchor and system 01's anchor are the
+ * first section's top edge — THE SAME PIXEL. Left alone, progress can only step
+ * from 0 to 0.1 the instant the reading line touches the feed: the camera
+ * teleports to system 01 and the opening frame is never seen.
+ *
+ * The obvious fix is a tall padding above the first section, giving the step
+ * somewhere to happen. It works, and it costs exactly what it buys — a screenful
+ * of empty navy between the vessel and the first heading. So the run-up is taken
+ * in scroll instead: for this distance past the pin, progress is capped by a
+ * ramp rather than by geometry, and the camera glides out to system 01 while the
+ * page underneath stays gapless.
+ *
+ * 0.16vh is the strip's own collapse distance (MOBILE_STRIP_OPEN_VH less
+ * MOBILE_STRIP_COLLAPSED_VH), which is the point: the camera's move out to the
+ * first system and the vessel's settle into its reference size are the same
+ * gesture, and end together.
+ * ---------------------------------------------------------------------------
+ */
+const OPENING_TRAVEL = (MOBILE_STRIP_OPEN_VH - MOBILE_STRIP_COLLAPSED_VH) / 100
+
+/**
+ * How far BEFORE the strip pins the feed takes over, as a fraction of the
+ * viewport.
+ *
+ * The pin is the earliest moment the reading line can be trusted (see the note
+ * where this is used), but it is a hard edge, and handing over exactly on it
+ * left the first heading sitting under the vessel for a beat looking inert
+ * while the reader was plainly already reading it. Starting fractionally early
+ * takes that beat out: system 01 lights, and the camera leaves the opening
+ * frame, just before the vessel finishes settling into place.
+ *
+ * Keep this WELL under the strip's own height. It is a small anticipation, not
+ * a second mechanism — pushed far enough back it would reintroduce exactly the
+ * bug the pin gate exists to prevent, lighting the first heading while it is
+ * still down at the bottom of the screen.
+ */
+const FEED_LEAD = 0.08
+
+/**
  * The mobile home: a scrollytelling feed under the pinned vessel.
  *
  * The nine systems are ordinary text sections scrolling beneath the strip —
@@ -1104,11 +1162,9 @@ const FEED_FOCUS = 0.3
  */
 function MobileSystemsFeed({
   target,
-  active,
   strip,
 }: {
   target: { current: number }
-  active: number
   /** The vessel strip, so the reading line can be placed below it — see
       FEED_FOCUS. Its height changes as the page scrolls, so this is read live
       on every event rather than measured once. */
@@ -1116,6 +1172,38 @@ function MobileSystemsFeed({
 }) {
   const feed = useRef<HTMLOListElement>(null)
   const sections = useRef<Array<HTMLLIElement | null>>([])
+
+  /**
+   * Which section the reading line is currently inside — the one being read,
+   * and so the one to highlight.
+   *
+   * Derived HERE from the same geometry that drives the camera, rather than
+   * from the eased progress the way it used to be. The two are equivalent once
+   * a section has arrived — a section spanning the line holds progress at its
+   * own `at` (that is what the two anchors per section are for), so "spans the
+   * line" and "camera settled on this system" are the same instant by
+   * construction. Where they differed was the APPROACH, and that difference is
+   * the bug: the eased value passes a system's `at - HALF` (see systemActivity)
+   * half a run-up early, so the heading lit while it was still down at the
+   * bottom of the screen with nothing read. Keyed to the line, it lights when
+   * it arrives and not before.
+   */
+  const [reading, setReading] = useState(-1)
+  const readingRef = useRef(-1)
+
+  /**
+   * Document position at which the strip pins — the origin the opening leg is
+   * measured from.
+   *
+   * Taken as scrollY + the strip's own rect.top and refreshed on every event
+   * while it is still above the fold, which makes it exact no matter how
+   * coarsely scroll events happen to be sampled during a fast fling. Reading it
+   * off the scroll position alone would drift by however far a single event
+   * jumped. Once pinned, rect.top is 0 for good and the held value is the
+   * answer. (Same reasoning as stripFlowTop in the parent — see the note there
+   * on why offsetTop cannot be used for this.)
+   */
+  const pinTop = useRef(0)
 
   useEffect(() => {
     const update = () => {
@@ -1143,12 +1231,29 @@ function MobileSystemsFeed({
       // unclamped line landed off the bottom of the screen, far enough down the
       // feed to light up the first system while it was nowhere near being read.
       const vh = window.innerHeight
-      const stripBottom = THREE.MathUtils.clamp(
-        strip.current?.getBoundingClientRect().bottom ?? 0,
-        0,
-        vh,
-      )
+      const stripRect = strip.current?.getBoundingClientRect()
+      const stripBottom = THREE.MathUtils.clamp(stripRect?.bottom ?? 0, 0, vh)
       const focus = stripBottom + (vh - stripBottom) * FEED_FOCUS
+
+      /**
+       * How far past the pin the reader is, and how much of the opening leg
+       * that has bought. Below 1 the sweep has not left the opening frame.
+       *
+       * NOTHING MAY BE DRIVEN FROM THE READING LINE UNTIL THE STRIP IS PINNED.
+       * The line is defined as a fraction of the space BELOW the strip, so while
+       * the strip is still descending into place that space is the bottom sliver
+       * of the screen and the line sits down there with it. The first section
+       * crosses it while barely peeking into view — which is exactly the "lights
+       * up far too early" this whole gate exists to stop. Held at zero until the
+       * vessel is actually pinned, the geometry below only ever runs in the
+       * configuration it was designed for.
+       */
+      if (stripRect && stripRect.top > 0) pinTop.current = window.scrollY + stripRect.top
+      // FEED_LEAD brings the whole hand-over forward a little, so the highlight
+      // and the camera's opening move both start just before the vessel has
+      // finished settling rather than exactly on the pin.
+      const past = window.scrollY - pinTop.current + FEED_LEAD * vh
+      const opening = THREE.MathUtils.clamp(past / (OPENING_TRAVEL * vh), 0, 1)
       let p = anchors[anchors.length - 1][1]
       if (focus <= anchors[0][0]) {
         p = anchors[0][1]
@@ -1162,7 +1267,45 @@ function MobileSystemsFeed({
           }
         }
       }
+      // The opening leg, capped by the ramp rather than by the geometry: the
+      // camera walks amidships → system 01 over OPENING_TRAVEL of scroll. Once
+      // that is spent the cap is released entirely — capping with a plain
+      // min() would peg the whole rest of the sweep at system 01.
+      if (opening < 1) p = Math.min(p, SYSTEMS[0].at * opening)
+
       target.current = THREE.MathUtils.clamp(p, 0, 1)
+
+      // The section the line is actually inside — and nothing at all until the
+      // strip is pinned, per the note above. Past the last section it is -1
+      // again, correctly: nothing is being read there.
+      //
+      // Gated on the pin rather than on the opening leg being fully spent.
+      // Those are 128px apart, and with the feed gapless the line is ALREADY
+      // inside the first section by the time the strip pins — so waiting for
+      // the full leg handed section 01 a highlight window about sixteen pixels
+      // wide before the line moved on to section 02, i.e. it never visibly lit
+      // at all. The camera finishes its move a little after the heading lights,
+      // which is the right way round: the vessel is still settling onto the
+      // system you have just started reading.
+      //
+      // Guarded through a ref so this only reaches React when the answer
+      // changes — nine times over the whole feed, not once per scroll event.
+      let next = -1
+      if (past >= 0) {
+        for (let i = 0; i < sections.current.length; i++) {
+          const el = sections.current[i]
+          if (!el) continue
+          const r = el.getBoundingClientRect()
+          if (focus >= r.top && focus <= r.bottom) {
+            next = i
+            break
+          }
+        }
+      }
+      if (next !== readingRef.current) {
+        readingRef.current = next
+        setReading(next)
+      }
     }
 
     update()
@@ -1178,9 +1321,11 @@ function MobileSystemsFeed({
     // data-focus publishes the reading line for the layout test, which has to
     // place a section against it to assert the camera follows the reader.
     <div data-testid="systems-feed" data-focus={FEED_FOCUS}>
+      {/* No lead-in padding here, deliberately — the opening leg is bought
+          with SCROLL rather than with empty space. See OPENING_TRAVEL. */}
       <ol ref={feed} className="px-4 pb-10 sm:px-8">
         {SYSTEMS.map((spec, i) => {
-          const current = active === i
+          const current = reading === i
           return (
             <li
               key={spec.index}
@@ -1191,9 +1336,11 @@ function MobileSystemsFeed({
               data-active={current || undefined}
               className="border-navy-800/70 border-b py-8"
             >
-              {/* The accent follows the eased progress (via active), not the
-                  raw scroll — the heading lights up when the camera actually
-                  arrives, which reads as the vessel answering the reader. */}
+              {/* The accent marks the section the reading line is inside — see
+                  `reading` above. Which is also the moment the camera settles
+                  on that system, so it still reads as the vessel answering the
+                  reader; it just no longer answers several hundred pixels
+                  early. */}
               <p
                 className={`font-mono text-xs tracking-[0.2em] transition-colors ${
                   current ? 'text-signal-400' : 'text-signal-500/50'
@@ -1238,7 +1385,10 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
   /** Where the scene is — eased toward the target by ProgressDriver. */
   const progress = useRef(0)
   const stops = useRef<HTMLDivElement>(null)
+  /** The resizing WINDOW onto the scene — the visible strip. */
   const strip = useRef<HTMLDivElement>(null)
+  /** The canvas's own box inside that window, held at the open height. */
+  const canvasHolder = useRef<HTMLDivElement>(null)
   /** The strip's position in normal flow — see the note where it is read. */
   const stripFlowTop = useRef(0)
   const readout = useRef<HTMLDivElement>(null)
@@ -1280,10 +1430,10 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
     return () => desktop.removeEventListener('change', sync)
   }, [])
 
-  // Whether the strip has handed the screen back to the content — see the note
-  // on MOBILE_STRIP_OPEN. Hysteresis between the two thresholds, so a reader
-  // hovering around the boundary does not sit through a resize on every nudge.
-  const [stripCollapsed, setStripCollapsed] = useState(false)
+  // The strip giving the screen back to the content, a pixel at a time as the
+  // feed pushes up into it — see stripHeightFor. Written straight to the DOM
+  // rather than held in state: this now changes on every scroll event, and a
+  // React render per event to set one height would be absurd.
   useEffect(() => {
     if (!mobileLayout) return
     const update = () => {
@@ -1307,14 +1457,16 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
       if (rect && rect.top > 0) stripFlowTop.current = rect.top + window.scrollY
       const y = window.scrollY - stripFlowTop.current
 
-      // The height the strip gives up when it collapses — the same quantity
-      // scroll anchoring will subtract from scrollY when it does. Both
-      // thresholds are multiples of it; see STRIP_COLLAPSE_AT.
-      const delta =
-        ((MOBILE_STRIP_OPEN_VH - MOBILE_STRIP_COLLAPSED_VH) / 100) * window.innerHeight
-      setStripCollapsed((was) =>
-        was ? y > delta * STRIP_EXPAND_AT : y > delta * STRIP_COLLAPSE_AT,
-      )
+      const vh = window.innerHeight
+      const height = stripHeightFor(y, vh)
+
+      // The window closes; the canvas inside it keeps its open height and is
+      // slid up by half of what the window lost, so the vessel stays centred in
+      // what is still visible. See the note above MOBILE_STRIP_OPEN.
+      if (strip.current) strip.current.style.height = `${height}px`
+      if (canvasHolder.current) {
+        canvasHolder.current.style.top = `${-((MOBILE_STRIP_OPEN_VH / 100) * vh - height) / 2}px`
+      }
     }
     update()
     window.addEventListener('scroll', update, { passive: true })
@@ -1364,7 +1516,17 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
   }, [])
 
   useEffect(() => {
-    setWebgl(hasWebGL())
+    const webglOk = hasWebGL()
+    setWebgl(webglOk)
+
+    // markVesselReady() otherwise only fires from inside the 3D Vessel
+    // component, which never mounts here — so without this, the intro
+    // curtain (see IntroCurtain.tsx) would never hear that anything is ready
+    // and would sit through its full MAX_WAIT_MS fallback (6s) before
+    // opening, on every single load. That wait exists to cover the GLB load
+    // and edge extraction; the fallback scene has nothing of the kind to wait
+    // for, so there is nothing to gain by holding the curtain for it.
+    if (!webglOk) markVesselReady()
 
     // Seakeeping is unprompted motion, so it honours the OS setting. The
     // scroll sweep is not affected — that one the user is driving themselves.
@@ -1420,7 +1582,41 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
     }
   }, [])
 
-  if (!webgl) return <HeroSeaScene label={label} />
+  /**
+   * WITHOUT WEBGL THERE IS NO SWEEP TO FALL BACK TO — so this is not a
+   * smaller version of the render below, it is a genuinely different page:
+   * the static SVG scene, stacked over the same intro and systems content the
+   * mobile feed uses, in normal document flow. No `<Canvas>`, no camera, no
+   * ProgressDriver — none of those exist without a WebGL context to draw
+   * into, so nothing here may depend on them.
+   *
+   * THIS BRANCH USED TO BE `return <HeroSeaScene label={label} />` AND
+   * NOTHING ELSE, which was a dead end: with SHOW_PAGE_CONTENT parking the
+   * rest of the page's copy, that left a single static screen and a footer —
+   * a document exactly one viewport tall, so scrolling had nowhere to go.
+   * That is invisible in day-to-day dev (a real GPU is almost always
+   * available) and correspondingly easy to ship by accident: it only shows up
+   * on a machine where `hasWebGL()` genuinely comes back false — a locked-down
+   * corporate browser with hardware acceleration disabled by policy, or a
+   * remote-desktop / VDI session with no GPU passthrough, are the common real
+   * cases. Reusing MobileSystemsFeed here means every device gets the actual
+   * nine-system write-up to scroll through, WebGL or not.
+   */
+  if (!webgl) {
+    return (
+      <>
+        {intro && <div className="px-4 pt-36 sm:px-8">{intro}</div>}
+        <div
+          ref={strip}
+          className="border-navy-800 sticky top-0 z-10 overflow-hidden border-b"
+          style={{ height: MOBILE_STRIP_OPEN }}
+        >
+          <HeroSeaScene label={label} />
+        </div>
+        <MobileSystemsFeed target={scrollTarget} strip={strip} />
+      </>
+    )
+  }
 
   return (
     <>
@@ -1448,34 +1644,42 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
           opaque navy, and the feed is MEANT to slide away beneath it. One
           element rather than two branches because a second Canvas would be a
           second WebGL context and a second copy of the model. */}
+      {/* The strip's PLACE in the page, and on mobile the one thing here that
+          never changes size. Holding the flow box at the open height while only
+          the window inside it shrinks is what keeps the feed's document
+          position fixed — so the sections rise at exactly the rate the reader
+          scrolls, and the resize can never move scrollY under them. See
+          stripHeightFor.
+          pointer-events are off on this box: past the window it is empty space
+          lying over the feed, and it must not swallow taps meant for it. */}
       <div
-        ref={strip}
-        // NOT pointer-events-none on mobile: content scrolled under the
-        // opaque strip is still in the hit-test tree, and a transparent strip
-        // would forward taps to links the user cannot see. The strip swallows
-        // them. Desktop turns interaction off — the layer is fixed under the
-        // whole page and must never intercept clicks meant for the content.
-        className="border-navy-800 sticky top-0 z-10 overflow-hidden border-b lg:pointer-events-none lg:fixed lg:inset-0 lg:-z-10 lg:h-auto lg:overflow-visible lg:border-b-0"
-        // Height is inline and mobile-only: the desktop layer takes its size
-        // from inset-0 and must never be given one of these. overflow-hidden
-        // above is what makes this a WINDOW onto the canvas rather than a box
-        // that resizes it — see the note on MOBILE_STRIP_OPEN_VH.
-        style={
-          mobileLayout
-            ? {
-                height: stripCollapsed ? MOBILE_STRIP_COLLAPSED : MOBILE_STRIP_OPEN,
-                transition: `height ${STRIP_EASE}`,
-              }
-            : undefined
-        }
-        role="img"
-        aria-label={label}
+        className="pointer-events-none sticky top-0 z-10 lg:fixed lg:inset-0 lg:-z-10 lg:h-auto"
+        style={mobileLayout ? { height: MOBILE_STRIP_OPEN } : undefined}
       >
+        <div
+          ref={strip}
+          // pointer-events back ON for the window itself: content scrolled
+          // under the opaque strip is still in the hit-test tree, and a
+          // see-through strip would forward taps to links the user cannot see.
+          // The window swallows them. Desktop leaves interaction off — the
+          // layer is fixed under the whole page and must never intercept
+          // clicks meant for the content.
+          className="border-navy-800 pointer-events-auto relative overflow-hidden border-b lg:pointer-events-none lg:h-full lg:overflow-visible lg:border-b-0"
+          // Height is inline and mobile-only, and is rewritten on every scroll
+          // by the effect above; this is just its opening value. The desktop
+          // layer takes its size from the fixed parent and must never be given
+          // one of these. overflow-hidden is what makes this a WINDOW onto the
+          // canvas rather than a box that resizes it — see MOBILE_STRIP_OPEN_VH.
+          style={mobileLayout ? { height: MOBILE_STRIP_OPEN } : undefined}
+          role="img"
+          aria-label={label}
+        >
         {/* The canvas holder. Fixed at the open height for the whole life of
             the page, and slid up by half of what the window loses so the
             vessel stays centred in what remains visible. Nothing here changes
             the canvas's SIZE, which is the point. */}
         <div
+          ref={canvasHolder}
           style={
             mobileLayout
               ? {
@@ -1483,8 +1687,7 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
                   left: 0,
                   right: 0,
                   height: MOBILE_STRIP_OPEN,
-                  top: stripCollapsed ? MOBILE_CANVAS_LIFT : 0,
-                  transition: `top ${STRIP_EASE}`,
+                  top: 0,
                 }
               : { position: 'relative', height: '100%' }
           }
@@ -1562,12 +1765,13 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
           ))}
         </div>
         </div>
+        </div>
       </div>
 
       {/* In flow directly under the sticky strip: the systems scroll beneath
           the pinned vessel, driving the camera as they go. */}
       {mobileLayout && (
-        <MobileSystemsFeed target={scrollTarget} active={activeSystem} strip={strip} />
+        <MobileSystemsFeed target={scrollTarget} strip={strip} />
       )}
 
       {/* Company intro, holding the first stop before any system appears.
