@@ -1410,8 +1410,28 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
     setActiveSystem(index)
   }, [])
 
-  // Resolved after mount — touches APIs that only exist in a browser.
-  const [webgl, setWebgl] = useState(false)
+  /**
+   * Resolved after mount — touches APIs that only exist in a browser. null
+   * until then, and THE NULL IS LOAD-BEARING: it is "not asked yet", which is
+   * not the same as "no".
+   *
+   * It used to be a plain false, which meant the first paint of every visit —
+   * including every machine that does have WebGL — rendered the no-WebGL
+   * branch for one commit. That was harmless while the branch was only the
+   * static scene. It stopped being harmless the moment the branch also
+   * rendered `intro`, because the intro carries [data-hero-title], and the
+   * intro curtain measures that heading in a useLayoutEffect and only keeps
+   * looking while it is ABSENT (see MEASURE_DEADLINE_MS in IntroCurtain).
+   *
+   * So the curtain measured the heading in the fallback's full-width mobile
+   * card rather than in the desktop panel it actually lands in — ~1408px
+   * against ~648px. That pins the opening scale to its floor and leaves the
+   * statement at the far left of the screen instead of centred on it.
+   *
+   * Undetermined therefore renders exactly what this branch rendered before:
+   * the static scene, and no intro for the curtain to measure early.
+   */
+  const [webgl, setWebgl] = useState<boolean | null>(null)
   const [still, setStill] = useState(E2E)
 
   // Which home presentation is live: the desktop scroll sweep or the mobile
@@ -1602,6 +1622,11 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
    * cases. Reusing MobileSystemsFeed here means every device gets the actual
    * nine-system write-up to scroll through, WebGL or not.
    */
+  // Not asked yet: the static scene ALONE, and in particular no `intro`. See
+  // the note on the webgl state — rendering the heading here, one commit
+  // before the real layout exists, is what the curtain would measure against.
+  if (webgl === null) return <HeroSeaScene label={label} />
+
   if (!webgl) {
     return (
       <>
