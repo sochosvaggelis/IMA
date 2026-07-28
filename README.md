@@ -7,7 +7,7 @@ Vite + React 19 + TypeScript + Tailwind v4, bilingual EL/EN.
 > project cases and statistics are invented. Replace them before this goes
 > anywhere near a real visitor — see "Editing content" below.
 
-**Live:** https://sochosvaggelis.github.io/IMA/
+**Live:** https://imagreece.gr
 
 ## Running
 
@@ -24,19 +24,16 @@ Every push to `main` builds and publishes to GitHub Pages via
 `.github/workflows/deploy.yml`. A type error fails the deploy rather than
 shipping a broken site.
 
-Pages serves the site from the `/IMA/` subpath, which costs two things:
+The site is served from the custom domain `imagreece.gr` (set via
+`public/CNAME`, and DNS at the registrar), so it serves from root rather than
+a subpath — `vite.config.ts` sets `base: '/'`. `App.tsx` still passes
+`import.meta.env.BASE_URL` to the router's `basename`; never hardcode a path
+prefix elsewhere.
 
-- `vite.config.ts` sets `base: '/IMA/'` for builds (dev stays at `/`), and
-  `App.tsx` passes `import.meta.env.BASE_URL` to the router's `basename`, so
-  one build works in both places. Never hardcode `/IMA/` anywhere else.
-- Pages has no rewrite rules, so the workflow copies `index.html` to
-  `404.html`. Deep links land on the 404 page, the app boots, and React Router
-  resolves the URL. It works, but those responses carry a 404 status — worth
-  knowing if search ranking ever matters.
-
-Both of those disappear the day this moves to a real domain: set `base` back
-to `'/'` and drop the `404.html` step in favour of a proper
-`/* -> /index.html` rewrite.
+Pages has no rewrite rules, so the workflow copies `index.html` to
+`404.html`. Deep links land on the 404 page, the app boots, and React Router
+resolves the URL. It works, but those responses carry a 404 status — worth
+knowing if search ranking ever matters.
 
 ## Editing content
 
