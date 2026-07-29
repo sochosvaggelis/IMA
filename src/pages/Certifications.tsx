@@ -40,9 +40,9 @@ export default function Certifications() {
           ))}
         </ul>
 
-        <p className="border-alert-600/30 bg-alert-600/5 text-alert-500 mt-12 rounded-md border px-5 py-4 text-sm leading-relaxed">
+        {/* <p className="border-alert-600/30 bg-alert-600/5 text-alert-500 mt-12 rounded-md border px-5 py-4 text-sm leading-relaxed">
           {t.certifications.disclaimer}
-        </p>
+        </p> */}
       </Section>
     </>
   )

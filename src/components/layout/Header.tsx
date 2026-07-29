@@ -81,7 +81,7 @@ export function Header() {
           <Logo name="compact" />
         </Link>
 
-        <nav className="hidden items-center gap-7 lg:flex" aria-label="Main">
+        <nav className="hidden items-center gap-7 lg:flex" aria-label={t.nav.mainNav}>
           {NAV_KEYS.map((key) => (
             <NavLink key={key} to={ROUTES[key]} className={navLinkClass}>
               {t.nav[key]}
@@ -127,7 +127,7 @@ export function Header() {
         // fills exactly what is left of the screen.
         className="bg-navy-950/97 border-navy-800 h-[calc(100dvh-5rem)] overflow-y-auto border-t backdrop-blur-md lg:hidden"
       >
-        <nav className="flex flex-col px-5 py-4 sm:px-8" aria-label="Mobile">
+        <nav className="flex flex-col px-5 py-4 sm:px-8" aria-label={t.nav.mobileNav}>
           {(['home', ...NAV_KEYS, 'contact'] as RouteKey[]).map((key) => (
             <NavLink
               key={key}

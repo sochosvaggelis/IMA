@@ -22,6 +22,8 @@ export const en: Dictionary = {
     menu: 'Menu',
     close: 'Close',
     skipToContent: 'Skip to content',
+    mainNav: 'Main navigation',
+    mobileNav: 'Mobile navigation',
   },
 
   emergency: {
@@ -272,6 +274,13 @@ export const en: Dictionary = {
       'Based in Piraeus. We cover Greek ports permanently and travel worldwide for breakdowns and riding squads.',
     primary: 'Permanent presence',
     secondary: 'Regular coverage',
+    reach: {
+      title: 'One base, worldwide radius.',
+      body: 'Piraeus is our home — from there we reach every major shipping hub. The lines show indicative routes, not limits.',
+      hub: 'Piraeus — home port',
+      onRequest: 'Ports on request',
+      note: 'An engineer in any port worldwide within 24 hours.',
+    },
     worldwide: {
       title: 'Worldwide, on request',
       body: 'Engineer on a plane within 24 hours to any port. Riding squads for voyages of any length.',
