@@ -8,27 +8,96 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0b1220" />
 
-    <!-- Title and description are kept in sync with the active language by
-         LanguageProvider; these are the pre-hydration defaults. -->
+    <!-- Title, description, canonical and the og:/twitter: pairs below are the
+         pre-hydration defaults. usePageMeta rewrites all of them per route and
+         per language once React mounts — see src/i18n/usePageMeta.ts. -->
     <title>International Marine Automations — Marine Electrical &amp; Automation</title>
     <meta
       name="description"
       content="Marine electrical and automation repair. From board-level component repair to full electrical refit. 24/7 breakdown response."
     />
+    <link rel="canonical" href="https://imagreece.gr/" />
 
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="International Marine Automations" />
+    <meta property="og:url" content="https://imagreece.gr/" />
     <meta property="og:title" content="International Marine Automations" />
     <meta
       property="og:description"
       content="Marine electrical and automation repair. From board-level component repair to full electrical refit. 24/7 breakdown response."
     />
+    <meta property="og:image" content="https://imagreece.gr/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Structured data. This is what feeds Google's local results and the
+         business panel; it is deliberately static rather than rendered by
+         React, so a crawler gets it without executing any JavaScript.
+         Keep the address, phone and hours in step with the dictionaries. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "ProfessionalService",
+        "@id": "https://imagreece.gr/#business",
+        "name": "International Marine Automations",
+        "description": "Marine electrical, electronics and automation repair — board-level component repair through to full electrical refit, on site, at anchor or in the yard.",
+        "url": "https://imagreece.gr/",
+        "logo": "https://imagreece.gr/logo.png",
+        "image": "https://imagreece.gr/og-image.png",
+        "email": "imagreece@gmail.com",
+        "telephone": "+302104814935",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Akropoleos 13 & Garivaldi",
+          "addressLocality": "Nikea",
+          "addressRegion": "Attica",
+          "postalCode": "18451",
+          "addressCountry": "GR"
+        },
+        "openingHoursSpecification": [
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+            "opens": "08:00",
+            "closes": "17:00"
+          }
+        ],
+        "contactPoint": [
+          {
+            "@type": "ContactPoint",
+            "contactType": "emergency",
+            "telephone": "+302104814935",
+            "availableLanguage": ["el", "en"],
+            "hoursAvailable": {
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday"
+              ],
+              "opens": "00:00",
+              "closes": "23:59"
+            }
+          }
+        ],
+        "areaServed": [
+          { "@type": "City", "name": "Piraeus" },
+          { "@type": "City", "name": "Elefsina" },
+          { "@type": "City", "name": "Perama" },
+          { "@type": "City", "name": "Salamina" },
+          { "@type": "City", "name": "Thessaloniki" },
+          { "@type": "City", "name": "Volos" },
+          { "@type": "City", "name": "Patras" },
+          { "@type": "City", "name": "Heraklion" },
+          { "@type": "City", "name": "Rhodes" }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

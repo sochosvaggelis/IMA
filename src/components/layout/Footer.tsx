@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom'
+import { LocaleLink } from '@/i18n/LocaleLink'
 import { useI18n } from '@/i18n/useI18n'
 import { ROUTES, type RouteKey } from '@/routes'
 import { Container } from '@/components/ui/Container'
-import { telHref } from '@/lib/contact'
+import { CONTACT_EMAIL, telHref } from '@/lib/contact'
 import { Logo } from './Logo'
 
 const COMPANY_KEYS: RouteKey[] = ['projects', 'certifications', 'coverage']
@@ -33,9 +33,9 @@ export function Footer() {
             <ul className="space-y-3">
               {SERVICE_KEYS.map((key) => (
                 <li key={key}>
-                  <Link to={ROUTES[key]} className="text-navy-400 hover:text-signal-400 text-sm transition-colors">
+                  <LocaleLink to={ROUTES[key]} className="text-navy-400 hover:text-signal-400 text-sm transition-colors">
                     {t.nav[key]}
-                  </Link>
+                  </LocaleLink>
                 </li>
               ))}
             </ul>
@@ -46,15 +46,15 @@ export function Footer() {
             <ul className="space-y-3">
               {COMPANY_KEYS.map((key) => (
                 <li key={key}>
-                  <Link to={ROUTES[key]} className="text-navy-400 hover:text-signal-400 text-sm transition-colors">
+                  <LocaleLink to={ROUTES[key]} className="text-navy-400 hover:text-signal-400 text-sm transition-colors">
                     {t.nav[key]}
-                  </Link>
+                  </LocaleLink>
                 </li>
               ))}
               <li>
-                <Link to={ROUTES.contact} className="text-navy-400 hover:text-signal-400 text-sm transition-colors">
+                <LocaleLink to={ROUTES.contact} className="text-navy-400 hover:text-signal-400 text-sm transition-colors">
                   {t.nav.contact}
-                </Link>
+                </LocaleLink>
               </li>
             </ul>
           </div>
@@ -64,7 +64,20 @@ export function Footer() {
           <p className="text-navy-500 text-xs">
             © {year} International Marine Automations. {t.footer.rights}
           </p>
-          <p className="text-navy-600 font-mono text-xs">{t.footer.placeholder}</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <LocaleLink
+              to={ROUTES.privacy}
+              className="text-navy-500 hover:text-signal-400 text-xs transition-colors"
+            >
+              {t.nav.privacy}
+            </LocaleLink>
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="text-navy-500 hover:text-signal-400 font-mono text-xs transition-colors"
+            >
+              {CONTACT_EMAIL}
+            </a>
+          </div>
         </div>
       </Container>
     </footer>

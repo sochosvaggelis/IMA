@@ -11,6 +11,53 @@ export const en: Dictionary = {
       'Marine electrical and automation repair. From board-level component repair to full electrical refit. 24/7 breakdown response.',
   },
 
+  pageMeta: {
+    home: {
+      title: 'International Marine Automations — Marine Electrical & Automation',
+      description:
+        'Marine electrical and automation repair. From board-level component repair to full electrical refit. 24/7 breakdown response.',
+    },
+    services: {
+      title: 'Services — From the component to the vessel | IMA',
+      description:
+        'Three levels of repair: board, system, full electrical refit. All in-house, no subcontractors — on site, at anchor or in the yard.',
+    },
+    capabilities: {
+      title: 'Capabilities — Equipment we support | IMA',
+      description:
+        'PLCs, drives, inverters, switchboards, alarm and monitoring systems. We work daily with the equipment you already have installed, any manufacturer.',
+    },
+    projects: {
+      title: 'Projects — Recent breakdowns and turnaround times | IMA',
+      description:
+        'Real faults on real vessels: what failed, what we did, and how long until the ship was back in service.',
+    },
+    certifications: {
+      title: 'Certifications and class approvals | IMA',
+      description:
+        'The certifications and class approvals covering our work, so the repair passes survey.',
+    },
+    coverage: {
+      title: 'Coverage — 9 Greek ports, worldwide response | IMA',
+      description:
+        'Based in Piraeus. Covering Elefsina, Perama, Salamina, Thessaloniki, Volos, Patras, Heraklion and Rhodes — and we travel to wherever the vessel is.',
+    },
+    contact: {
+      title: 'Report a breakdown — 24/7 line | IMA',
+      description:
+        'Send vessel name, IMO, port and ETA. We reply with an engineer and an arrival time, not a quotation. Breakdown line 24/7, 365 days.',
+    },
+    privacy: {
+      title: 'Privacy Policy | IMA',
+      description:
+        'What data the breakdown report form collects, why we need it, where it is stored and what rights you have over it.',
+    },
+    notFound: {
+      title: 'Page not found | IMA',
+      description: 'The page you asked for does not exist.',
+    },
+  },
+
   nav: {
     home: 'Home',
     services: 'Services',
@@ -19,6 +66,7 @@ export const en: Dictionary = {
     certifications: 'Certifications',
     coverage: 'Coverage',
     contact: 'Contact',
+    privacy: 'Privacy Policy',
     menu: 'Menu',
     close: 'Close',
     skipToContent: 'Skip to content',
@@ -28,7 +76,7 @@ export const en: Dictionary = {
 
   emergency: {
     label: '24/7 Breakdown',
-    phone: '+30 210 000 0000',
+    phone: '+30 210 481 4935',
     cta: 'Call now',
   },
 
@@ -330,16 +378,29 @@ export const en: Dictionary = {
       submitting: 'Sending…',
       required: 'Required',
       optional: 'Optional',
+      privacyNotice: 'Your details are used only to answer your enquiry. See our',
+      privacyLink: 'Privacy Policy',
     },
     validation: {
       required: 'Please fill in this field.',
       email: 'Please check the email address.',
       imo: 'An IMO number has 7 digits.',
+      summary: 'Please check the fields marked below.',
     },
     success: {
       title: 'Report sent.',
       body: 'We reply within 2 hours during office hours. For emergencies, call the 24/7 line — do not rely on email.',
       again: 'Send another',
+      mailTitle: 'Finish sending from your email.',
+      mailBody:
+        'We composed the message with every detail of your report and opened your email client. The report reaches us as soon as you press send there.',
+      mailFallback: 'If nothing opened, send it straight to',
+    },
+    error: {
+      title: 'Sending failed.',
+      body: 'Your report is not lost — it is still filled in below. Try again, send it by email, or call us directly.',
+      mail: 'Send by email',
+      call: 'Call the breakdown line',
     },
     direct: {
       title: 'Direct',
@@ -347,11 +408,70 @@ export const en: Dictionary = {
       office: 'Office',
       email: 'Email',
       address: 'Address',
-      addressValue: 'Akti Miaouli 00, Piraeus 185 00, Greece',
+      addressValue: 'Akropoleos 13 & Garivaldi, Nikea 184 51, Greece',
       hours: 'Office hours',
-      hoursValue: 'Mon–Fri, 08:00–18:00 EET',
+      hoursValue: 'Mon–Fri, 08:00–17:00 EET',
       hoursNote: 'The breakdown line runs 24/7, 365 days a year.',
     },
+  },
+
+  privacy: {
+    eyebrow: 'Legal',
+    title: 'Privacy Policy',
+    intro:
+      'We collect only what you send us through the breakdown report form, and we use it only to reply. No advertising, no tracking, no selling data on.',
+    updated: 'Last updated: 21 September 2026',
+    sections: [
+      {
+        title: 'Who we are',
+        body: [
+          'The data controller is International Marine Automations, Akropoleos 13 & Garivaldi, Nikea 184 51, Greece.',
+          'For anything concerning your data, contact us at imagreece@gmail.com or +30 2104814935.',
+        ],
+      },
+      {
+        title: 'What we collect',
+        body: [
+          'Only what you type into the breakdown report form: your name, company, email and phone, together with the incident details — vessel name, IMO number, type, port, ETA, system and fault description.',
+          'We do not build profiles, we do not track your browsing, and we do not buy or enrich your details from third-party sources.',
+        ],
+      },
+      {
+        title: 'Why we need it',
+        body: [
+          'To answer your enquiry and send the right engineer with the right tools. Without a port, a fault description and a way to reach you, the job cannot be dispatched.',
+          'The legal basis is steps taken at your request prior to entering into a contract (GDPR Art. 6(1)(b)) and our legitimate interest in responding to business enquiries (Art. 6(1)(f)).',
+        ],
+      },
+      {
+        title: 'Where it goes',
+        body: [
+          'The form is delivered by Web3Forms, which turns the submission into an email to us. That correspondence is hosted with Google (Gmail).',
+          'Both act as processors and operate outside the EEA; the transfer relies on the standard contractual clauses in their terms. We do not share your data with anyone else unless the law requires it.',
+        ],
+      },
+      {
+        title: 'How long we keep it',
+        body: [
+          'We keep the correspondence for as long as it takes to handle the enquiry and, if work follows, for as long as the related records must be retained. After that it is deleted.',
+          'You can ask us to delete it sooner — see below.',
+        ],
+      },
+      {
+        title: 'Your rights',
+        body: [
+          'You have the right to access, correct, erase, restrict and port your data, and to object to processing. Email us and we will respond within one month.',
+          'If you believe we have mishandled your data, you can complain to the Hellenic Data Protection Authority (dpa.gr).',
+        ],
+      },
+      {
+        title: 'Cookies and local storage',
+        body: [
+          'This site sets no cookies and runs no analytics or advertising tools.',
+          'We store nothing at all on your device. Even the language is part of the address — the Greek version lives under /el — so there is no preference for us to remember.',
+        ],
+      },
+    ],
   },
 
   footer: {
@@ -362,7 +482,6 @@ export const en: Dictionary = {
       contact: 'Contact',
     },
     rights: 'All rights reserved.',
-    placeholder: 'Demo site with placeholder content — these details are not real.',
   },
 
   notFound: {

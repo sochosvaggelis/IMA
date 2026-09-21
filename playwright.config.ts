@@ -67,5 +67,13 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
+    env: {
+      // A key must be present for the contact form to take its real POST path
+      // rather than the mail-client fallback; contact.spec.ts intercepts the
+      // request, so the value is never used against the live service.
+      // (Reusing a dev server you started yourself bypasses this — the spec
+      // says so when it lands on the fallback screen instead.)
+      VITE_WEB3FORMS_KEY: 'e2e-test-key',
+    },
   },
 })

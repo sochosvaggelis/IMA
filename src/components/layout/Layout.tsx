@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useI18n } from '@/i18n/useI18n'
+import { usePageMeta } from '@/i18n/usePageMeta'
 import { Header } from './Header'
 import { Footer } from './Footer'
 
@@ -15,6 +16,7 @@ function ScrollToTop() {
 
 export function Layout() {
   const { t } = useI18n()
+  usePageMeta()
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -27,7 +29,12 @@ export function Layout() {
       </a>
       <Header />
       <main id="main" className="flex-1">
-        <Outlet />
+        {/* Route chunks are lazy (see App.tsx). The fallback is deliberately
+            empty — the page ground is already painted, and a spinner that
+            shows for 80ms reads as a glitch rather than as progress. */}
+        <Suspense fallback={<div className="min-h-dvh" aria-hidden="true" />}>
+          <Outlet />
+        </Suspense>
       </main>
       <Footer />
     </div>

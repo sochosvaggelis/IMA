@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useI18n } from '@/i18n/useI18n'
-import { ROUTES } from '@/routes'
+import { REPORT_BREAKDOWN, ROUTES } from '@/routes'
 import { telHref } from '@/lib/contact'
 import { VesselScene } from '@/components/hero/VesselScene'
 import { HomeIntroCurtain } from '@/components/hero/IntroCurtain'
@@ -33,7 +33,7 @@ function Hero() {
           </p>
 
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
-            <ButtonLink to={ROUTES.contact} variant="alert" size="lg">
+            <ButtonLink to={REPORT_BREAKDOWN} variant="alert" size="lg">
               {t.hero.ctaPrimary}
             </ButtonLink>
             <ButtonLink to={ROUTES.services} variant="secondary" size="lg">
@@ -196,7 +196,7 @@ function CtaBand() {
           {ctaBand.body}
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <ButtonLink to={ROUTES.contact} variant="alert" size="lg" className="w-full sm:w-auto">
+          <ButtonLink to={REPORT_BREAKDOWN} variant="alert" size="lg" className="w-full sm:w-auto">
             {ctaBand.cta}
           </ButtonLink>
           <p className="text-navy-400 text-sm">
@@ -240,7 +240,7 @@ function HeroIntro() {
       <p className="text-navy-300 mt-4 text-sm leading-relaxed">{t.hero.subtitle}</p>
 
       <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
-        <ButtonLink to={ROUTES.contact} variant="alert">
+        <ButtonLink to={REPORT_BREAKDOWN} variant="alert">
           {t.hero.ctaPrimary}
         </ButtonLink>
         <ButtonLink to={ROUTES.services} variant="secondary">

@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Every indexable route, in both languages. English owns the bare paths and
+  Greek is prefixed with /el — see src/i18n/localePath.ts.
+
+  Each entry lists the full alternate set INCLUDING ITSELF. That is not
+  redundancy: a hreflang group where one member fails to point back at the
+  others is discarded wholesale by search engines.
+
+  The link tags are also injected at runtime by usePageMeta, but a JS-rendered
+  site should not rely on that alone — this file is read without executing
+  anything.
+
+  Keep in step with ROUTES in src/routes.ts, and update lastmod when a page's
+  content actually changes: a sitemap claiming everything changed today gets
+  discounted.
+-->
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml"
+>
+  <url>
+    <loc>https://imagreece.gr/</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/" />
+  </url>
+  <url>
+    <loc>https://imagreece.gr/el</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/" />
+  </url>
+
+  <url>
+    <loc>https://imagreece.gr/services</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/services" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/services" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/services" />
+  </url>
+  <url>
+    <loc>https://imagreece.gr/el/services</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/services" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/services" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/services" />
+  </url>
+
+  <url>
+    <loc>https://imagreece.gr/capabilities</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/capabilities" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/capabilities" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/capabilities" />
+  </url>
+  <url>
+    <loc>https://imagreece.gr/el/capabilities</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/capabilities" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/capabilities" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/capabilities" />
+  </url>
+
+  <url>
+    <loc>https://imagreece.gr/projects</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/projects" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/projects" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/projects" />
+  </url>
+  <url>
+    <loc>https://imagreece.gr/el/projects</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/projects" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/projects" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/projects" />
+  </url>
+
+  <url>
+    <loc>https://imagreece.gr/certifications</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/certifications" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/certifications" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/certifications" />
+  </url>
+  <url>
+    <loc>https://imagreece.gr/el/certifications</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/certifications" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/certifications" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/certifications" />
+  </url>
+
+  <url>
+    <loc>https://imagreece.gr/coverage</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/coverage" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/coverage" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/coverage" />
+  </url>
+  <url>
+    <loc>https://imagreece.gr/el/coverage</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/coverage" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/coverage" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/coverage" />
+  </url>
+
+  <url>
+    <loc>https://imagreece.gr/contact</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/contact" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/contact" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/contact" />
+  </url>
+  <url>
+    <loc>https://imagreece.gr/el/contact</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/contact" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/contact" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/contact" />
+  </url>
+
+  <url>
+    <loc>https://imagreece.gr/privacy</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.3</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/privacy" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/privacy" />
+  </url>
+  <url>
+    <loc>https://imagreece.gr/el/privacy</loc>
+    <lastmod>2026-09-21</lastmod>
+    <priority>0.3</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/privacy" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/privacy" />
+  </url>
+</urlset>

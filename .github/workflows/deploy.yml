@@ -31,7 +31,15 @@ jobs:
 
       # tsc runs as part of this, so a type error fails the deploy rather
       # than shipping a broken site.
+      #
+      # The Web3Forms key is baked in here: a static build has nowhere else to
+      # read it from. It is a public key by design (see .env.example) — the
+      # secret is about editing the destination without a commit, not secrecy.
+      # If the secret is missing the build still succeeds, and the contact form
+      # falls back to the visitor's own mail client.
       - run: npm run build
+        env:
+          VITE_WEB3FORMS_KEY: ${{ secrets.WEB3FORMS_KEY }}
 
       # GitHub Pages has no rewrite rules, so a deep link such as
       # /IMA/services would 404 on refresh. Serving the app shell as the 404

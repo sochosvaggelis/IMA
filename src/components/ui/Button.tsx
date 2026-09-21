@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { LocaleLink } from '@/i18n/LocaleLink'
 import { cn } from '@/lib/cn'
 
 type Variant = 'primary' | 'secondary' | 'alert' | 'ghost'
@@ -68,9 +68,11 @@ export function ButtonLink({
     )
   }
 
+  // LocaleLink, not Link: every internal target needs the language prefix, and
+  // the CTAs on almost every page route through here.
   return (
-    <Link to={to} className={classes(variant, size, className)}>
+    <LocaleLink to={to} className={classes(variant, size, className)}>
       {children}
-    </Link>
+    </LocaleLink>
   )
 }

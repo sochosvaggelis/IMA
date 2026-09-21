@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
+import { LocaleLink, LocaleNavLink } from '@/i18n/LocaleLink'
 import { useI18n } from '@/i18n/useI18n'
 import { ROUTES, type RouteKey } from '@/routes'
 import { cn } from '@/lib/cn'
@@ -75,17 +76,17 @@ export function Header() {
           KEEP THE MOBILE PANEL BELOW AND MOBILE_HEADER_PX (VesselScene) IN
           STEP — both are this number written somewhere else. */}
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:h-22 lg:px-12">
-        <Link to={ROUTES.home} aria-label="IMA">
+        <LocaleLink to={ROUTES.home} aria-label="IMA">
           {/* compact: see the note on the prop — the intro curtain passes the
               same, and the two must not diverge. */}
           <Logo name="compact" />
-        </Link>
+        </LocaleLink>
 
         <nav className="hidden items-center gap-7 lg:flex" aria-label={t.nav.mainNav}>
           {NAV_KEYS.map((key) => (
-            <NavLink key={key} to={ROUTES[key]} className={navLinkClass}>
+            <LocaleNavLink key={key} to={ROUTES[key]} className={navLinkClass}>
               {t.nav[key]}
-            </NavLink>
+            </LocaleNavLink>
           ))}
         </nav>
 
@@ -129,7 +130,7 @@ export function Header() {
       >
         <nav className="flex flex-col px-5 py-4 sm:px-8" aria-label={t.nav.mobileNav}>
           {(['home', ...NAV_KEYS, 'contact'] as RouteKey[]).map((key) => (
-            <NavLink
+            <LocaleNavLink
               key={key}
               to={ROUTES[key]}
               className={({ isActive }) =>
@@ -140,7 +141,7 @@ export function Header() {
               }
             >
               {t.nav[key]}
-            </NavLink>
+            </LocaleNavLink>
           ))}
         </nav>
 

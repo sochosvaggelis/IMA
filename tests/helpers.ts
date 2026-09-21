@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test'
 
-/** Every route the site serves — layout checks sweep all of them. */
+/** Every route the site serves, in both languages — layout checks sweep all
+    of them. The Greek half is not padding: Greek runs noticeably longer than
+    English word for word, so it is where an overflow shows up first. */
 export const ALL_ROUTES = [
   '/',
   '/services',
@@ -9,6 +11,15 @@ export const ALL_ROUTES = [
   '/certifications',
   '/coverage',
   '/contact',
+  '/privacy',
+  '/el',
+  '/el/services',
+  '/el/capabilities',
+  '/el/projects',
+  '/el/certifications',
+  '/el/coverage',
+  '/el/contact',
+  '/el/privacy',
 ] as const
 
 /** Snap stops on the home sweep: intro + nine systems + closing frame. */
@@ -21,11 +32,20 @@ export const DESKTOP_LAYOUT_WIDTH = 1024
 
 /**
  * Navigate with the app's deterministic test mode on, and wait until the page
- * is actually painted the way a screenshot needs it: webfonts swapped in
- * (Inter/JetBrains Mono arrive late and move every line of text).
+ * is actually painted the way a screenshot needs it: the route's own chunk
+ * arrived, and webfonts swapped in (Inter/JetBrains Mono arrive late and move
+ * every line of text).
  */
 export async function gotoStable(page: Page, path: string): Promise<void> {
   await page.goto(`${path}?e2e=1`)
+
+  // Routes are lazy (see App.tsx), so navigation resolves while the page is
+  // still the empty Suspense fallback — screenshotting here captures a blank
+  // navy rectangle. Every route renders an <h1> inside <main>, so waiting for
+  // the first one is the signal that the real page, not the placeholder, is
+  // on screen. (.first(): the home page has two, hero and intro panel.)
+  await page.locator('main h1').first().waitFor({ state: 'visible' })
+
   // Force EVERY face the site uses, not just the ones above the fold:
   // document.fonts.ready only covers faces requested so far, and a full-page
   // screenshot renders below-the-fold text whose weights then start loading
