@@ -1,0 +1,37 @@
+# International Marine Automations (IMA)
+
+> Marine electrical, electronics and automation repair, based in Piraeus, Greece. From board-level component repair to full electrical refit, on board in port, underway or in the shipyard — with a 24/7 breakdown line and engineers sent worldwide.
+
+The site is in English and Greek: English pages are at the paths below, and each has a Greek version under `/el` (for example `/el/services`). Breakdown reports go through the contact page; the office replies with an engineer and an arrival time.
+
+## Pages
+
+- [Home](https://imagreece.gr/): Marine electrical and automation repair. From board-level component repair to full electrical refit. 24/7 breakdown response.
+- [Services](https://imagreece.gr/services): Three levels of repair: board, system, full electrical refit. All in-house, no subcontractors — on site, at anchor or in the yard.
+- [Capabilities](https://imagreece.gr/capabilities): The systems and makers we work on — PLCs, drives, inverters, switchboards, alarm and monitoring systems, any manufacturer.
+- [Projects](https://imagreece.gr/projects): Real faults on real vessels: what failed, what we did, and how long until the ship was back in service.
+- [Spare parts](https://imagreece.gr/spare-parts): Photos of PCBs, drives, PLC modules and power supplies we have repaired at component level in our workshop.
+- [Certifications](https://imagreece.gr/certifications): The certifications and class approvals covering our work, so the repair passes survey.
+- [Coverage](https://imagreece.gr/coverage): Based in Piraeus, covering the main Greek ports permanently or regularly, and travelling to wherever the vessel is.
+- [Report a breakdown](https://imagreece.gr/contact): Send vessel name, IMO, port and ETA. We reply with an engineer and an arrival time, not a quotation.
+
+## Στα ελληνικά
+
+- [Αρχική](https://imagreece.gr/el)
+- [Υπηρεσίες](https://imagreece.gr/el/services)
+- [Δυνατότητες](https://imagreece.gr/el/capabilities)
+- [Έργα](https://imagreece.gr/el/projects)
+- [Ανταλλακτικά](https://imagreece.gr/el/spare-parts)
+- [Πιστοποιήσεις](https://imagreece.gr/el/certifications)
+- [Κάλυψη](https://imagreece.gr/el/coverage)
+- [Επικοινωνία](https://imagreece.gr/el/contact)
+
+## Contact
+
+- 24/7 breakdown line: +30 210 481 4935
+- Email: [imagreece@gmail.com](mailto:imagreece@gmail.com)
+
+## Optional
+
+- [Privacy policy](https://imagreece.gr/privacy): What the breakdown report form collects, why, where it is stored, and your rights over it.
+- [Sitemap](https://imagreece.gr/sitemap.xml)

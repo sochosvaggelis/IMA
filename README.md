@@ -64,6 +64,11 @@ Two kinds of content, edited in two places:
 
 No content lives inside components.
 
+One exception, by necessity: `public/llms.txt`, the plain-Markdown summary
+of the site that AI tools read (and Lighthouse checks for). It lists every
+page with a link, plus the breakdown line and email, written out by hand —
+update it when a page is added or those contact details change.
+
 ## Content & admin panel
 
 The site is still a static build on GitHub Pages; the editable content lives
