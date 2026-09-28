@@ -1,0 +1,50 @@
+[
+  {
+    "id": "4c6e8a2d-1b3f-4e5a-9c7d-3f5b7d9e1a01",
+    "position": 1,
+    "published": true,
+    "name": "DNV",
+    "detail_el": "Αναγνωρισμένος πάροχος υπηρεσιών",
+    "detail_en": "Approved service supplier"
+  },
+  {
+    "id": "4c6e8a2d-1b3f-4e5a-9c7d-3f5b7d9e1a02",
+    "position": 2,
+    "published": true,
+    "name": "ABS",
+    "detail_el": "Αναγνωρισμένο εξωτερικό συνεργείο",
+    "detail_en": "Recognised external specialist"
+  },
+  {
+    "id": "4c6e8a2d-1b3f-4e5a-9c7d-3f5b7d9e1a03",
+    "position": 3,
+    "published": true,
+    "name": "Lloyd's Register",
+    "detail_el": "Έγκριση υπηρεσιών",
+    "detail_en": "Service approval"
+  },
+  {
+    "id": "4c6e8a2d-1b3f-4e5a-9c7d-3f5b7d9e1a04",
+    "position": 4,
+    "published": true,
+    "name": "Bureau Veritas",
+    "detail_el": "Αναγνωρισμένο συνεργείο",
+    "detail_en": "Approved service supplier"
+  },
+  {
+    "id": "4c6e8a2d-1b3f-4e5a-9c7d-3f5b7d9e1a05",
+    "position": 5,
+    "published": true,
+    "name": "ISO 9001:2015",
+    "detail_el": "Σύστημα διαχείρισης ποιότητας",
+    "detail_en": "Quality management system"
+  },
+  {
+    "id": "4c6e8a2d-1b3f-4e5a-9c7d-3f5b7d9e1a06",
+    "position": 6,
+    "published": true,
+    "name": "ISO 45001",
+    "detail_el": "Υγεία & ασφάλεια στην εργασία",
+    "detail_en": "Occupational health & safety"
+  }
+]

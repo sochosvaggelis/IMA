@@ -29,6 +29,7 @@ const BY_PATH: Record<string, MetaKey> = {
   [ROUTES.services]: 'services',
   [ROUTES.capabilities]: 'capabilities',
   [ROUTES.projects]: 'projects',
+  [ROUTES.spareParts]: 'spareParts',
   [ROUTES.certifications]: 'certifications',
   [ROUTES.coverage]: 'coverage',
   [ROUTES.contact]: 'contact',

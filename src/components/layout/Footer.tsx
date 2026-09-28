@@ -6,7 +6,7 @@ import { CONTACT_EMAIL, telHref } from '@/lib/contact'
 import { Logo } from './Logo'
 
 const COMPANY_KEYS: RouteKey[] = ['projects', 'certifications', 'coverage']
-const SERVICE_KEYS: RouteKey[] = ['services', 'capabilities']
+const SERVICE_KEYS: RouteKey[] = ['services', 'capabilities', 'spareParts']
 
 export function Footer() {
   const { t } = useI18n()

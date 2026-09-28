@@ -1,10 +1,10 @@
-import { lazy } from 'react'
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { LanguageProvider } from '@/i18n/LanguageProvider'
 import type { Language } from '@/i18n/context'
 import { EL_PREFIX } from '@/i18n/localePath'
 import { Layout } from '@/components/layout/Layout'
-import { ROUTES } from '@/routes'
+import { ADMIN_ROOT, ROUTES } from '@/routes'
 
 /**
  * Every route is split out of the main bundle.
@@ -26,11 +26,15 @@ const Home = lazy(() => import('@/pages/Home'))
 const Services = lazy(() => import('@/pages/Services'))
 const Capabilities = lazy(() => import('@/pages/Capabilities'))
 const Projects = lazy(() => import('@/pages/Projects'))
+const SpareParts = lazy(() => import('@/pages/SpareParts'))
 const Certifications = lazy(() => import('@/pages/Certifications'))
 const Coverage = lazy(() => import('@/pages/Coverage'))
 const Contact = lazy(() => import('@/pages/Contact'))
 const Privacy = lazy(() => import('@/pages/Privacy'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
+
+/** The admin panel, with supabase-js inside it — a chunk no visitor loads. */
+const Admin = lazy(() => import('@/admin/AdminApp'))
 
 /** ROUTES holds absolute paths ('/services'); nested routes want them relative. */
 const rel = (path: string) => path.slice(1)
@@ -51,6 +55,7 @@ function LocalisedRoutes({ lang }: { lang: Language }) {
           <Route path={rel(ROUTES.services)} element={<Services />} />
           <Route path={rel(ROUTES.capabilities)} element={<Capabilities />} />
           <Route path={rel(ROUTES.projects)} element={<Projects />} />
+          <Route path={rel(ROUTES.spareParts)} element={<SpareParts />} />
           <Route path={rel(ROUTES.certifications)} element={<Certifications />} />
           <Route path={rel(ROUTES.coverage)} element={<Coverage />} />
           <Route path={rel(ROUTES.contact)} element={<Contact />} />
@@ -68,6 +73,16 @@ export default function App() {
     // at the root and under a subpath.
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
+        {/* Outside both language trees: the panel is English-only, has none
+            of the site's header or footer, and is never linked from it. */}
+        <Route
+          path={`${ADMIN_ROOT}/*`}
+          element={
+            <Suspense fallback={<div className="min-h-dvh" aria-hidden="true" />}>
+              <Admin />
+            </Suspense>
+          }
+        />
         {/* Greek is prefixed; English owns the bare paths. Order matters —
             '/*' would otherwise swallow '/el/...' before it is tried. */}
         <Route path={`${EL_PREFIX}/*`} element={<LocalisedRoutes lang="el" />} />

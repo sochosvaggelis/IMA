@@ -4,12 +4,19 @@ import { Section } from '@/components/ui/Section'
 import { ButtonLink } from '@/components/ui/Button'
 import { CoverageGlobe } from '@/components/coverage/CoverageGlobe'
 import { ROUTES } from '@/routes'
+import { pick } from '@/content/localise'
+import { usePublished } from '@/content/usePublished'
+import type { Port } from '@/content/types'
+import snapshot from '@/content/snapshot/ports.json'
 
 export default function Coverage() {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const reach = t.coverage.reach
-  const primary = t.coverage.ports.filter((p) => p.tier === 'primary')
-  const secondary = t.coverage.ports.filter((p) => p.tier === 'secondary')
+  // The port lists are edited in the admin panel; the copy around them, and
+  // the globe's routes, are not.
+  const ports = usePublished('ports', snapshot as Port[])
+  const primary = ports.filter((p) => p.tier === 'primary')
+  const secondary = ports.filter((p) => p.tier === 'secondary')
 
   return (
     <div className="relative">
@@ -80,10 +87,10 @@ export default function Coverage() {
             <ul className="mt-6 space-y-3">
               {primary.map((port) => (
                 <li
-                  key={port.name}
+                  key={port.id}
                   className="border-signal-500/30 bg-signal-500/5 text-white flex min-h-14 items-center rounded-md border px-5 font-medium"
                 >
-                  {port.name}
+                  {pick(port, 'title', lang)}
                 </li>
               ))}
             </ul>
@@ -97,10 +104,10 @@ export default function Coverage() {
             <ul className="mt-6 grid gap-3 sm:grid-cols-2">
               {secondary.map((port) => (
                 <li
-                  key={port.name}
+                  key={port.id}
                   className="border-navy-800 bg-navy-900/40 text-navy-300 flex min-h-14 items-center rounded-md border px-5 text-sm"
                 >
-                  {port.name}
+                  {pick(port, 'title', lang)}
                 </li>
               ))}
             </ul>

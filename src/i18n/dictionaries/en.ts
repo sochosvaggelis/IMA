@@ -32,6 +32,11 @@ export const en: Dictionary = {
       description:
         'Real faults on real vessels: what failed, what we did, and how long until the ship was back in service.',
     },
+    spareParts: {
+      title: 'Spare parts — Boards and units we repair | IMA',
+      description:
+        'Photos of PCBs, drives, PLC modules and power supplies we have repaired at component level in our workshop.',
+    },
     certifications: {
       title: 'Certifications and class approvals | IMA',
       description:
@@ -63,6 +68,7 @@ export const en: Dictionary = {
     services: 'Services',
     capabilities: 'Capabilities',
     projects: 'Projects',
+    spareParts: 'Spare parts',
     certifications: 'Certifications',
     coverage: 'Coverage',
     contact: 'Contact',
@@ -213,24 +219,6 @@ export const en: Dictionary = {
     intro:
       'This list is equipment we have worked on repeatedly, not equipment we have heard of. If your system is missing, send us the model — we usually cover it.',
     note: 'All trademarks belong to their respective owners. IMA is an independent service workshop and is not an agent or representative of any maker listed above.',
-    groups: [
-      {
-        name: 'Automation & control',
-        brands: ['Siemens', 'ABB', 'Schneider Electric', 'Allen-Bradley', 'Omron', 'Mitsubishi'],
-      },
-      {
-        name: 'Alarm & monitoring',
-        brands: ['Kongsberg', 'Autronica', 'Praxis', 'Selma', 'Lyngsø Marine', 'Nabtesco'],
-      },
-      {
-        name: 'Power & propulsion',
-        brands: ['Wärtsilä', 'MAN Energy Solutions', 'Caterpillar', 'Cummins', 'Deif', 'Woodward'],
-      },
-      {
-        name: 'Drives & motors',
-        brands: ['Danfoss', 'Vacon', 'Yaskawa', 'Fuji Electric', 'Nidec', 'WEG'],
-      },
-    ],
   },
 
   projects: {
@@ -246,56 +234,36 @@ export const en: Dictionary = {
       downtime: 'Turnaround',
       scope: 'Scope',
     },
-    items: [
-      {
-        id: 'p1',
-        title: 'Blackouts traced to a generator synchronising fault',
-        vessel: 'Bulk carrier, 82,000 DWT',
-        location: 'Piraeus',
-        scope: 'Systems & automation',
-        problem:
-          'Repeated blackouts when running two generators in parallel. Two previous suppliers had replaced the AVR with no effect.',
-        solution:
-          'Fault-finding located a degraded current transformer in the synchronising panel, not in the generator. CT replaced, load sharing recalibrated, tested at full load.',
-        downtime: '11 hours',
-      },
-      {
-        id: 'p2',
-        title: 'Obsolete ballast control board with no spare in existence',
-        vessel: 'Product tanker, 50,000 DWT',
-        location: 'IMA workshop',
-        scope: 'Component level',
-        problem:
-          'The ballast system control card went out of production in 2009. The maker proposed a full system upgrade at six-figure cost.',
-        solution:
-          'Component-level repair: two driver ICs and the output relay replaced, corroded tracks rebuilt. 72-hour bench test before return.',
-        downtime: '6 days (vessel never stopped)',
-      },
-      {
-        id: 'p3',
-        title: 'False fire alarms four days before class survey',
-        vessel: 'Container vessel, 4,500 TEU',
-        location: 'Elefsina',
-        scope: 'Systems & automation',
-        problem:
-          'Dozens of false alarms per day in the engine room. Survey was in four days and the system would not have passed.',
-        solution:
-          'Traced an insulation fault on a detector loop caused by water ingress. Replaced 40 m of cable and 6 detectors, full loop test, documentation prepared for the surveyor.',
-        downtime: '2 days — survey passed',
-      },
-      {
-        id: 'p4',
-        title: 'Full electrical refit after an engine room fire',
-        vessel: 'Ro-Ro ferry',
-        location: 'Perama shipyard',
-        scope: 'Refit',
-        problem:
-          'An engine room fire destroyed the main switchboard and much of the wiring. No current drawings existed — the last set was from 1998.',
-        solution:
-          'Surveyed and redrew the electrical drawings from scratch, built a new switchboard, fully rewired the engine room, handed over with class approval.',
-        downtime: '11 weeks',
-      },
-    ],
+    scopes: {
+      component: 'Component level',
+      systems: 'Systems & automation',
+      retrofit: 'Refit',
+    },
+    photos: 'Photos',
+    empty: 'The first cases are on their way.',
+  },
+
+  spareParts: {
+    eyebrow: 'Spare parts',
+    title: 'Back in service.',
+    intro:
+      'Boards, drives and modules we have repaired at component level in our workshop. If your unit looks like one of these — or like none of them — send us the model.',
+    filterLabel: 'Filter by manufacturer',
+    all: 'All',
+    empty: 'The first photos are on their way.',
+    ask: 'Ask us about this',
+    cta: {
+      title: 'Got a unit that needs repair?',
+      body: 'Send us the maker and the model, and we will tell you whether we can repair it.',
+      button: 'Send us the model',
+    },
+  },
+
+  gallery: {
+    open: 'View photo',
+    close: 'Close',
+    previous: 'Previous photo',
+    next: 'Next photo',
   },
 
   certifications: {
@@ -303,14 +271,6 @@ export const en: Dictionary = {
     title: 'Class & compliance.',
     intro:
       'Our work is handed over with documentation that survives an inspection. Without that, a repair is worth nothing.',
-    items: [
-      { name: 'DNV', detail: 'Approved service supplier' },
-      { name: 'ABS', detail: 'Recognised external specialist' },
-      { name: "Lloyd's Register", detail: 'Service approval' },
-      { name: 'Bureau Veritas', detail: 'Approved service supplier' },
-      { name: 'ISO 9001:2015', detail: 'Quality management system' },
-      { name: 'ISO 45001', detail: 'Occupational health & safety' },
-    ],
     disclaimer:
       'Placeholder content. Replace with IMA’s actual approvals and certificate numbers before going live.',
   },
@@ -333,17 +293,6 @@ export const en: Dictionary = {
       title: 'Worldwide, on request',
       body: 'Engineer on a plane within 24 hours to any port. Riding squads for voyages of any length.',
     },
-    ports: [
-      { name: 'Piraeus', tier: 'primary' },
-      { name: 'Elefsina', tier: 'primary' },
-      { name: 'Perama', tier: 'primary' },
-      { name: 'Salamina', tier: 'primary' },
-      { name: 'Thessaloniki', tier: 'secondary' },
-      { name: 'Volos', tier: 'secondary' },
-      { name: 'Patras', tier: 'secondary' },
-      { name: 'Heraklion', tier: 'secondary' },
-      { name: 'Rhodes', tier: 'secondary' },
-    ],
   },
 
   contact: {

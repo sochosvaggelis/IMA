@@ -1,0 +1,74 @@
+[
+  {
+    "id": "9e1f3a5c-7d2b-4a6e-8f10-5b7c9d1e3f01",
+    "position": 1,
+    "published": true,
+    "tier": "primary",
+    "title_el": "Πειραιάς",
+    "title_en": "Piraeus"
+  },
+  {
+    "id": "9e1f3a5c-7d2b-4a6e-8f10-5b7c9d1e3f02",
+    "position": 2,
+    "published": true,
+    "tier": "primary",
+    "title_el": "Ελευσίνα",
+    "title_en": "Elefsina"
+  },
+  {
+    "id": "9e1f3a5c-7d2b-4a6e-8f10-5b7c9d1e3f03",
+    "position": 3,
+    "published": true,
+    "tier": "primary",
+    "title_el": "Πέραμα",
+    "title_en": "Perama"
+  },
+  {
+    "id": "9e1f3a5c-7d2b-4a6e-8f10-5b7c9d1e3f04",
+    "position": 4,
+    "published": true,
+    "tier": "primary",
+    "title_el": "Σαλαμίνα",
+    "title_en": "Salamina"
+  },
+  {
+    "id": "9e1f3a5c-7d2b-4a6e-8f10-5b7c9d1e3f05",
+    "position": 5,
+    "published": true,
+    "tier": "secondary",
+    "title_el": "Θεσσαλονίκη",
+    "title_en": "Thessaloniki"
+  },
+  {
+    "id": "9e1f3a5c-7d2b-4a6e-8f10-5b7c9d1e3f06",
+    "position": 6,
+    "published": true,
+    "tier": "secondary",
+    "title_el": "Βόλος",
+    "title_en": "Volos"
+  },
+  {
+    "id": "9e1f3a5c-7d2b-4a6e-8f10-5b7c9d1e3f07",
+    "position": 7,
+    "published": true,
+    "tier": "secondary",
+    "title_el": "Πάτρα",
+    "title_en": "Patras"
+  },
+  {
+    "id": "9e1f3a5c-7d2b-4a6e-8f10-5b7c9d1e3f08",
+    "position": 8,
+    "published": true,
+    "tier": "secondary",
+    "title_el": "Ηράκλειο",
+    "title_en": "Heraklion"
+  },
+  {
+    "id": "9e1f3a5c-7d2b-4a6e-8f10-5b7c9d1e3f09",
+    "position": 9,
+    "published": true,
+    "tier": "secondary",
+    "title_el": "Ρόδος",
+    "title_en": "Rhodes"
+  }
+]

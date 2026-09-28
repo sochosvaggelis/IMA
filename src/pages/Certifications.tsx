@@ -2,9 +2,16 @@ import { useI18n } from '@/i18n/useI18n'
 import { Container } from '@/components/ui/Container'
 import { Section } from '@/components/ui/Section'
 import { CertificateBackdrop } from '@/components/certifications/CertificateBackdrop'
+import { pick } from '@/content/localise'
+import { usePublished } from '@/content/usePublished'
+import type { Certification } from '@/content/types'
+import snapshot from '@/content/snapshot/certifications.json'
 
 export default function Certifications() {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
+  // The cards are edited in the admin panel; the heading and intro stay in
+  // the dictionaries.
+  const items = usePublished('certifications', snapshot as Certification[])
 
   return (
     <div className="relative overflow-hidden">
@@ -53,9 +60,9 @@ export default function Certifications() {
 
         <Section className="pt-0 sm:pt-0 lg:pt-0">
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-            {t.certifications.items.map((item) => (
+            {items.map((item) => (
               <li
-                key={item.name}
+                key={item.id}
                 className="border-navy-800 bg-navy-900/40 flex flex-col rounded-lg border p-6 backdrop-blur-sm"
               >
                 <svg
@@ -73,7 +80,7 @@ export default function Certifications() {
                   <path d="M8.5 12l2.5 2.5 4.5-5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <h2 className="mt-4 text-lg font-semibold text-white">{item.name}</h2>
-                <p className="text-navy-400 mt-1.5 text-sm leading-relaxed">{item.detail}</p>
+                <p className="text-navy-400 mt-1.5 text-sm leading-relaxed">{pick(item, 'detail', lang)}</p>
               </li>
             ))}
           </ul>

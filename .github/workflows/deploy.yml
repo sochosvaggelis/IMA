@@ -5,6 +5,13 @@ on:
     branches: [main]
   # Lets you re-run a deploy from the Actions tab without pushing.
   workflow_dispatch:
+  # Daily rebuild. Content edited in the admin panel is live at once (the
+  # pages fetch it), but the snapshot baked into the build — what renders
+  # first, and what stands in if the database is unreachable — only moves on
+  # a deploy. This keeps it at most a day behind, and the daily query also
+  # keeps a free-tier Supabase project from pausing for inactivity.
+  schedule:
+    - cron: '17 3 * * *'
 
 permissions:
   contents: read
@@ -29,6 +36,15 @@ jobs:
 
       - run: npm ci
 
+      # Published projects and spare parts, copied out of the database into
+      # src/content/snapshot. Skipped (keeping the committed snapshot) while
+      # the secrets are unset; once they are set, an unreachable database
+      # fails the deploy so the last good one stays up. See the script.
+      - run: npm run snapshot
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+
       # tsc runs as part of this, so a type error fails the deploy rather
       # than shipping a broken site.
       #
@@ -37,9 +53,14 @@ jobs:
       # secret is about editing the destination without a commit, not secrecy.
       # If the secret is missing the build still succeeds, and the contact form
       # falls back to the visitor's own mail client.
+      #
+      # The Supabase pair is public in the same sense (see .env.example): what
+      # it can do is decided by the database's row-level security.
       - run: npm run build
         env:
           VITE_WEB3FORMS_KEY: ${{ secrets.WEB3FORMS_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
 
       # GitHub Pages has no rewrite rules, so a deep link such as
       # /IMA/services would 404 on refresh. Serving the app shell as the 404

@@ -8,7 +8,14 @@ import { Logo } from './Logo'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { ButtonLink } from '@/components/ui/Button'
 
-const NAV_KEYS: RouteKey[] = ['services', 'capabilities', 'projects', 'certifications', 'coverage']
+const NAV_KEYS: RouteKey[] = [
+  'services',
+  'capabilities',
+  'projects',
+  'spareParts',
+  'certifications',
+  'coverage',
+]
 
 function MenuIcon({ open }: { open: boolean }) {
   return (

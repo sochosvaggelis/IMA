@@ -88,6 +88,23 @@
   </url>
 
   <url>
+    <loc>https://imagreece.gr/spare-parts</loc>
+    <lastmod>2026-09-28</lastmod>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/spare-parts" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/spare-parts" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/spare-parts" />
+  </url>
+  <url>
+    <loc>https://imagreece.gr/el/spare-parts</loc>
+    <lastmod>2026-09-28</lastmod>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://imagreece.gr/spare-parts" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://imagreece.gr/el/spare-parts" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://imagreece.gr/spare-parts" />
+  </url>
+
+  <url>
     <loc>https://imagreece.gr/certifications</loc>
     <lastmod>2026-09-21</lastmod>
     <priority>0.7</priority>

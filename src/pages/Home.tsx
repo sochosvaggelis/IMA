@@ -7,6 +7,11 @@ import { HomeIntroCurtain } from '@/components/hero/IntroCurtain'
 import { Container } from '@/components/ui/Container'
 import { Section, SectionHeading } from '@/components/ui/Section'
 import { ButtonLink } from '@/components/ui/Button'
+import { pick } from '@/content/localise'
+import { usePublished } from '@/content/usePublished'
+import type { CapabilityGroup, Project } from '@/content/types'
+import snapshot from '@/content/snapshot/projects.json'
+import capabilitySnapshot from '@/content/snapshot/capability_groups.json'
 
 function ArrowRight() {
   return (
@@ -118,7 +123,10 @@ function ServicesTeaser() {
 function CapabilitiesTeaser() {
   const { t } = useI18n()
   const teaser = t.home.capabilitiesTeaser
-  const brands = t.capabilities.groups.flatMap((group) => group.brands)
+  // Every maker on /capabilities, from the same rows the admin panel edits.
+  // A maker listed under two groups is shown once.
+  const groups = usePublished('capability_groups', capabilitySnapshot as CapabilityGroup[])
+  const brands = [...new Set(groups.flatMap((group) => group.brands))]
 
   return (
     <Section tone="raised">
@@ -145,8 +153,10 @@ function CapabilitiesTeaser() {
 }
 
 function ProjectsTeaser() {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const teaser = t.home.projectsTeaser
+  // The first two in the order set in the admin panel — its list says so.
+  const featured = usePublished('projects', snapshot as Project[]).slice(0, 2)
 
   return (
     <Section>
@@ -159,21 +169,27 @@ function ProjectsTeaser() {
       </div>
 
       <div className="mt-12 grid gap-4 md:grid-cols-2 lg:gap-6">
-        {t.projects.items.slice(0, 2).map((project) => (
+        {featured.map((project) => (
           <article
             key={project.id}
             className="border-navy-800 bg-navy-900/40 flex flex-col rounded-lg border p-6 lg:p-8"
           >
             <div className="text-navy-500 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs">
-              <span>{project.vessel}</span>
+              <span>{pick(project, 'vessel', lang)}</span>
               <span aria-hidden="true">·</span>
-              <span>{project.location}</span>
+              <span>{pick(project, 'location', lang)}</span>
             </div>
-            <h3 className="text-h3 mt-4 font-semibold text-balance text-white">{project.title}</h3>
-            <p className="text-navy-400 mt-4 flex-1 text-sm leading-relaxed">{project.problem}</p>
+            <h3 className="text-h3 mt-4 font-semibold text-balance text-white">
+              {pick(project, 'title', lang)}
+            </h3>
+            <p className="text-navy-400 mt-4 flex-1 text-sm leading-relaxed">
+              {pick(project, 'problem', lang)}
+            </p>
             <div className="border-navy-800 mt-6 border-t pt-4">
               <span className="text-navy-500 text-xs">{t.projects.labels.downtime}</span>
-              <p className="text-signal-400 font-mono text-sm font-medium">{project.downtime}</p>
+              <p className="text-signal-400 font-mono text-sm font-medium">
+                {pick(project, 'downtime', lang)}
+              </p>
             </div>
           </article>
         ))}

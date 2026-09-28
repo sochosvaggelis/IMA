@@ -94,6 +94,12 @@ export default function Contact() {
     if (requested && URGENCIES.includes(requested as Urgency)) {
       setForm((prev) => ({ ...prev, urgency: requested as Urgency }))
     }
+    // "Ask us about this" on the spare parts showcase names the unit, so the
+    // visitor starts from the one they were looking at (see enquireAbout).
+    const system = params.get('system')?.trim()
+    if (system) {
+      setForm((prev) => ({ ...prev, system: system.slice(0, 200) }))
+    }
   }, [params])
 
   // Send focus where the outcome is, rather than leaving it on a button that

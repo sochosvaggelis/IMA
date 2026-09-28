@@ -74,6 +74,13 @@ export default defineConfig({
       // (Reusing a dev server you started yourself bypasses this — the spec
       // says so when it lands on the fallback screen instead.)
       VITE_WEB3FORMS_KEY: 'e2e-test-key',
+      // The content backend, pointed at a host that does not exist. Specs that
+      // need one intercept it with tests/fakeSupabase.ts; everywhere else the
+      // requests simply fail and the pages render their committed snapshot —
+      // so screenshots never depend on what is in a live database. (Env set
+      // here beats .env, but again not on a reused dev server.)
+      VITE_SUPABASE_URL: 'https://backend.e2e.test',
+      VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_e2e',
     },
   },
 })

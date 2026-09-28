@@ -4,7 +4,6 @@
  * `en.ts` is type-checked against this file's shape, so a missing
  * translation is a build error rather than a blank spot on the page.
  */
-export type PortTier = 'primary' | 'secondary'
 export type Urgency = 'emergency' | 'urgent' | 'planned'
 
 export const el = {
@@ -43,6 +42,11 @@ export const el = {
       description:
         'Πραγματικές βλάβες σε πραγματικά πλοία: τι χάλασε, τι κάναμε, και σε πόσο χρόνο το πλοίο ξαναμπήκε σε υπηρεσία.',
     },
+    spareParts: {
+      title: 'Ανταλλακτικά — Πλακέτες και μονάδες που επισκευάζουμε | IMA',
+      description:
+        'Φωτογραφίες από πλακέτες, drives, PLC modules και τροφοδοτικά που επισκευάσαμε σε επίπεδο εξαρτήματος στο εργαστήριό μας.',
+    },
     certifications: {
       title: 'Πιστοποιήσεις και εγκρίσεις νηογνωμόνων | IMA',
       description:
@@ -74,6 +78,7 @@ export const el = {
     services: 'Υπηρεσίες',
     capabilities: 'Δυνατότητες',
     projects: 'Έργα',
+    spareParts: 'Ανταλλακτικά',
     certifications: 'Πιστοποιήσεις',
     coverage: 'Κάλυψη',
     contact: 'Επικοινωνία',
@@ -224,24 +229,8 @@ export const el = {
     intro:
       'Η λίστα δείχνει εξοπλισμό που έχουμε δουλέψει επανειλημμένα, όχι ό,τι έχουμε ακουστά. Αν το σύστημά σας λείπει, στείλτε μας το μοντέλο — συνήθως το καλύπτουμε.',
     note: 'Τα εμπορικά σήματα ανήκουν στους αντίστοιχους κατόχους τους. Η IMA είναι ανεξάρτητο συνεργείο και δεν αντιπροσωπεύει κανέναν από τους παραπάνω κατασκευαστές.',
-    groups: [
-      {
-        name: 'Αυτοματισμοί & έλεγχος',
-        brands: ['Siemens', 'ABB', 'Schneider Electric', 'Allen-Bradley', 'Omron', 'Mitsubishi'],
-      },
-      {
-        name: 'Alarm & monitoring',
-        brands: ['Kongsberg', 'Autronica', 'Praxis', 'Selma', 'Lyngsø Marine', 'Nabtesco'],
-      },
-      {
-        name: 'Ισχύς & πρόωση',
-        brands: ['Wärtsilä', 'MAN Energy Solutions', 'Caterpillar', 'Cummins', 'Deif', 'Woodward'],
-      },
-      {
-        name: 'Drives & κινητήρες',
-        brands: ['Danfoss', 'Vacon', 'Yaskawa', 'Fuji Electric', 'Nidec', 'WEG'],
-      },
-    ],
+    // The groups of makers are edited in the admin panel (/admin) and stored
+    // in the database — see src/content.
   },
 
   projects: {
@@ -257,56 +246,41 @@ export const el = {
       downtime: 'Χρόνος αποκατάστασης',
       scope: 'Αντικείμενο',
     },
-    items: [
-      {
-        id: 'p1',
-        title: 'Blackout από σφάλμα συγχρονισμού γεννητριών',
-        vessel: 'Bulk carrier, 82.000 DWT',
-        location: 'Πειραιάς',
-        scope: 'Συστήματα & αυτοματισμοί',
-        problem:
-          'Επαναλαμβανόμενα blackout κατά την παράλληλη λειτουργία δύο γεννητριών. Δύο προηγούμενοι προμηθευτές είχαν αντικαταστήσει τον AVR χωρίς αποτέλεσμα.',
-        solution:
-          'Η διάγνωση εντόπισε φθαρμένο current transformer στον πίνακα συγχρονισμού, όχι στη γεννήτρια. Αντικατάσταση CT, επαναβαθμονόμηση load sharing, δοκιμή σε πλήρες φορτίο.',
-        downtime: '11 ώρες',
-      },
-      {
-        id: 'p2',
-        title: 'Obsolete πλακέτα ballast control χωρίς ανταλλακτικό',
-        vessel: 'Product tanker, 50.000 DWT',
-        location: 'Εργαστήριο IMA',
-        scope: 'Επίπεδο εξαρτήματος',
-        problem:
-          'Η κάρτα ελέγχου του ballast system είχε βγει από παραγωγή το 2009. Ο κατασκευαστής πρότεινε πλήρη αναβάθμιση συστήματος, κόστους έξι ψηφίων.',
-        solution:
-          'Επισκευή σε επίπεδο εξαρτήματος: αντικατάσταση δύο driver ICs και του ρελέ εξόδου, ανακατασκευή διαβρωμένων δρόμων. Δοκιμή 72 ωρών σε πάγκο πριν την επιστροφή.',
-        downtime: '6 ημέρες (χωρίς ακινητοποίηση πλοίου)',
-      },
-      {
-        id: 'p3',
-        title: 'Ψευδείς συναγερμοί πυρανίχνευσης πριν από class survey',
-        vessel: 'Container vessel, 4.500 TEU',
-        location: 'Ελευσίνα',
-        scope: 'Συστήματα & αυτοματισμοί',
-        problem:
-          'Δεκάδες ψευδείς συναγερμοί ημερησίως στο μηχανοστάσιο. Το survey ήταν σε 4 ημέρες και το σύστημα δεν θα περνούσε.',
-        solution:
-          'Εντοπισμός σφάλματος μόνωσης σε βρόχο ανιχνευτών λόγω εισροής νερού. Αντικατάσταση 40 μέτρων καλωδίου και 6 ανιχνευτών, πλήρης δοκιμή βρόχου, τεκμηρίωση για τον επιθεωρητή.',
-        downtime: '2 ημέρες — το survey πέρασε',
-      },
-      {
-        id: 'p4',
-        title: 'Πλήρης ηλεκτρολογική ανακατασκευή μετά από πυρκαγιά',
-        vessel: 'Ro-Ro ferry',
-        location: 'Ναυπηγείο, Πέραμα',
-        scope: 'Ανακατασκευή',
-        problem:
-          'Πυρκαγιά στο μηχανοστάσιο κατέστρεψε τον κύριο πίνακα και μεγάλο μέρος της καλωδίωσης. Δεν υπήρχαν ενημερωμένα σχέδια — τα τελευταία ήταν του 1998.',
-        solution:
-          'Αποτύπωση και αναδημιουργία των σχεδίων από το μηδέν, κατασκευή νέου switchboard, πλήρης επανακαλωδίωση μηχανοστασίου, παράδοση με class approval.',
-        downtime: '11 εβδομάδες',
-      },
-    ],
+    // A project's badge. The admin panel picks one of the three service
+    // levels (see supabase/migrations); these are their short names.
+    scopes: {
+      component: 'Επίπεδο εξαρτήματος',
+      systems: 'Συστήματα & αυτοματισμοί',
+      retrofit: 'Ανακατασκευή',
+    },
+    photos: 'Φωτογραφίες',
+    empty: 'Τα πρώτα περιστατικά δημοσιεύονται σύντομα.',
+    // The cases themselves are not here: they are edited in the admin panel
+    // (/admin) and stored in the database — see src/content.
+  },
+
+  spareParts: {
+    eyebrow: 'Ανταλλακτικά',
+    title: 'Ξανά σε λειτουργία.',
+    intro:
+      'Πλακέτες, drives και modules που επισκευάσαμε σε επίπεδο εξαρτήματος στο εργαστήριό μας. Αν η μονάδα σας μοιάζει με κάποια από αυτές — ή με καμία — στείλτε μας το μοντέλο.',
+    filterLabel: 'Φιλτράρισμα ανά κατασκευαστή',
+    all: 'Όλα',
+    empty: 'Οι πρώτες φωτογραφίες ανεβαίνουν σύντομα.',
+    ask: 'Ρωτήστε μας για αυτό',
+    cta: {
+      title: 'Έχετε μονάδα που χρειάζεται επισκευή;',
+      body: 'Στείλτε μας τον κατασκευαστή και το μοντέλο και θα σας πούμε αν μπορούμε να την επισκευάσουμε.',
+      button: 'Στείλτε μας το μοντέλο',
+    },
+  },
+
+  // The full-screen photo viewer on /projects and /spare-parts.
+  gallery: {
+    open: 'Προβολή φωτογραφίας',
+    close: 'Κλείσιμο',
+    previous: 'Προηγούμενη φωτογραφία',
+    next: 'Επόμενη φωτογραφία',
   },
 
   certifications: {
@@ -314,14 +288,8 @@ export const el = {
     title: 'Class & συμμόρφωση.',
     intro:
       'Η δουλειά μας παραδίδεται με τεκμηρίωση που περνάει από επιθεώρηση. Χωρίς αυτό, μια επισκευή δεν έχει αξία.',
-    items: [
-      { name: 'DNV', detail: 'Αναγνωρισμένος πάροχος υπηρεσιών' },
-      { name: 'ABS', detail: 'Αναγνωρισμένο εξωτερικό συνεργείο' },
-      { name: "Lloyd's Register", detail: 'Έγκριση υπηρεσιών' },
-      { name: 'Bureau Veritas', detail: 'Αναγνωρισμένο συνεργείο' },
-      { name: 'ISO 9001:2015', detail: 'Σύστημα διαχείρισης ποιότητας' },
-      { name: 'ISO 45001', detail: 'Υγεία & ασφάλεια στην εργασία' },
-    ],
+    // The cards themselves are edited in the admin panel (/admin) and
+    // stored in the database — see src/content.
     disclaimer:
       'Placeholder περιεχόμενο. Αντικαταστήστε με τις πραγματικές πιστοποιήσεις και τους αριθμούς μητρώου της IMA πριν τη δημοσίευση.',
   },
@@ -344,17 +312,8 @@ export const el = {
       title: 'Παγκοσμίως, κατόπιν αιτήματος',
       body: 'Μηχανικός σε αεροπλάνο εντός 24 ωρών για οποιοδήποτε λιμάνι. Riding squads για ταξίδια οποιασδήποτε διάρκειας.',
     },
-    ports: [
-      { name: 'Πειραιάς', tier: 'primary' },
-      { name: 'Ελευσίνα', tier: 'primary' },
-      { name: 'Πέραμα', tier: 'primary' },
-      { name: 'Σαλαμίνα', tier: 'primary' },
-      { name: 'Θεσσαλονίκη', tier: 'secondary' },
-      { name: 'Βόλος', tier: 'secondary' },
-      { name: 'Πάτρα', tier: 'secondary' },
-      { name: 'Ηράκλειο', tier: 'secondary' },
-      { name: 'Ρόδος', tier: 'secondary' },
-    ] as { name: string; tier: PortTier }[],
+    // The ports themselves are edited in the admin panel (/admin) and
+    // stored in the database — see src/content.
   },
 
   contact: {

@@ -3,9 +3,16 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Section } from '@/components/ui/Section'
 import { ButtonLink } from '@/components/ui/Button'
 import { ROUTES } from '@/routes'
+import { pick } from '@/content/localise'
+import { usePublished } from '@/content/usePublished'
+import type { CapabilityGroup } from '@/content/types'
+import snapshot from '@/content/snapshot/capability_groups.json'
 
 export default function Capabilities() {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
+  // The groups and their makers are edited in the admin panel; the heading,
+  // intro and trademark note around them stay in the dictionaries.
+  const groups = usePublished('capability_groups', snapshot as CapabilityGroup[])
 
   return (
     <>
@@ -17,10 +24,10 @@ export default function Capabilities() {
 
       <Section>
         <div className="space-y-12 lg:space-y-16">
-          {t.capabilities.groups.map((group) => (
-            <div key={group.name}>
+          {groups.map((group) => (
+            <div key={group.id}>
               <h2 className="text-navy-200 border-navy-800 border-b pb-4 text-h3 font-semibold">
-                {group.name}
+                {pick(group, 'title', lang)}
               </h2>
               <ul className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 {group.brands.map((brand) => (

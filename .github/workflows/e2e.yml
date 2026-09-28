@@ -26,7 +26,10 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
-      - run: npx playwright test tests/layout.spec.ts
+      # Plus the admin panel and the database-backed pages, run against the
+      # in-browser fake in tests/fakeSupabase.ts — behaviour, no baselines,
+      # so they are as platform-independent as the layout checks.
+      - run: npx playwright test tests/layout.spec.ts tests/admin.spec.ts tests/content.spec.ts
         env:
           CI: true
 

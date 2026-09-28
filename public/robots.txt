@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+# The admin panel: nothing there for a search engine, and it marks itself
+# noindex too.
+Disallow: /admin
 
 Sitemap: https://imagreece.gr/sitemap.xml

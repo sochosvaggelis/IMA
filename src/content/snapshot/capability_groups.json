@@ -1,0 +1,62 @@
+[
+  {
+    "id": "7a2d3b1f-5c8e-4d2a-8b61-2e4f9c1a0b01",
+    "position": 1,
+    "published": true,
+    "title_el": "Αυτοματισμοί & έλεγχος",
+    "title_en": "Automation & control",
+    "brands": [
+      "Siemens",
+      "ABB",
+      "Schneider Electric",
+      "Allen-Bradley",
+      "Omron",
+      "Mitsubishi"
+    ]
+  },
+  {
+    "id": "7a2d3b1f-5c8e-4d2a-8b61-2e4f9c1a0b02",
+    "position": 2,
+    "published": true,
+    "title_el": "Alarm & monitoring",
+    "title_en": "Alarm & monitoring",
+    "brands": [
+      "Kongsberg",
+      "Autronica",
+      "Praxis",
+      "Selma",
+      "Lyngsø Marine",
+      "Nabtesco"
+    ]
+  },
+  {
+    "id": "7a2d3b1f-5c8e-4d2a-8b61-2e4f9c1a0b03",
+    "position": 3,
+    "published": true,
+    "title_el": "Ισχύς & πρόωση",
+    "title_en": "Power & propulsion",
+    "brands": [
+      "Wärtsilä",
+      "MAN Energy Solutions",
+      "Caterpillar",
+      "Cummins",
+      "Deif",
+      "Woodward"
+    ]
+  },
+  {
+    "id": "7a2d3b1f-5c8e-4d2a-8b61-2e4f9c1a0b04",
+    "position": 4,
+    "published": true,
+    "title_el": "Drives & κινητήρες",
+    "title_en": "Drives & motors",
+    "brands": [
+      "Danfoss",
+      "Vacon",
+      "Yaskawa",
+      "Fuji Electric",
+      "Nidec",
+      "WEG"
+    ]
+  }
+]

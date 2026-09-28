@@ -16,6 +16,20 @@ viewport, without anyone having to eyeball it.
   system panel fully inside the viewport at their scroll stops. No baselines,
   so this suite is platform-independent and runs in CI on every push
   (`.github/workflows/e2e.yml`).
+- **`admin.spec.ts`** / **`content.spec.ts`** — the admin panel end to end
+  (sign-in, real photo uploads through the in-browser resize, save, publish,
+  reorder, delete) and the database-backed public pages. They run against
+  `fakeSupabase.ts`, an in-browser stand-in for the Supabase project that
+  mimics its access rules. Behaviour only, so they run in CI too.
+
+## The content backend in tests
+
+`playwright.config.ts` builds the dev server against
+`https://backend.e2e.test`, a host that does not exist. Specs that need data
+intercept it with `FakeSupabase`; everywhere else the requests fail and pages
+render the committed snapshot (`src/content/snapshot`), so screenshots never
+depend on what is in the live database. A dev server you started yourself
+and that Playwright reuses keeps your own `.env` instead — stop it first.
 
 ## Commands
 
