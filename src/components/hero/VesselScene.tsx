@@ -77,9 +77,10 @@ import {
  *     plan view. setViewOffset slides the projection sideways instead: the
  *     ship moves left with its centreline still exactly horizontal.
  *
- * Edge extraction is memoised on the geometry — EdgesGeometry walks all ~200k
- * triangles and hashes every edge, which is a few hundred milliseconds. It
- * must never end up in the frame loop.
+ * Edge extraction runs once per geometry, in a worker — EdgesGeometry walks all
+ * ~200k triangles and hashes every edge, a few hundred milliseconds on a
+ * desktop and over a second on a phone. It must never end up in the frame
+ * loop, and no longer blocks the main thread at all (see useEdges).
  * ---------------------------------------------------------------------------
  */
 
@@ -495,6 +496,77 @@ const COLOR = {
 
 type Progress = { current: number }
 
+/**
+ * The hull's blueprint linework, computed in a worker (see edges.worker.ts):
+ * null until it arrives, then a geometry this component owns and disposes.
+ *
+ * Off the main thread because it was the heaviest thing on it — ~300ms on a
+ * fast desktop, over a second on a phone, blocking the intro curtain's own
+ * animation while it ran. The vessel draws nothing until the lines exist, as
+ * before, and readiness is still signalled only once they do.
+ *
+ * Falls back to computing in place wherever a worker cannot run the job: no
+ * Worker support, a position attribute the transfer below does not handle
+ * (interleaved), or the worker failing to load or throwing.
+ */
+function useEdges(geometry: THREE.BufferGeometry | null): THREE.BufferGeometry | null {
+  const [edges, setEdges] = useState<THREE.BufferGeometry | null>(null)
+
+  useEffect(() => {
+    if (!geometry) return
+    let current = true
+    let made: THREE.BufferGeometry | null = null
+    const accept = (next: THREE.BufferGeometry) => {
+      if (!current) return next.dispose()
+      made = next
+      setEdges(next)
+    }
+    const inPlace = () => accept(new THREE.EdgesGeometry(geometry, EDGE_ANGLE))
+
+    const position = geometry.getAttribute('position')
+    if (typeof Worker === 'undefined' || !(position instanceof THREE.BufferAttribute)) {
+      inPlace()
+      return () => {
+        current = false
+        made?.dispose()
+      }
+    }
+
+    const worker = new Worker(new URL('./edges.worker.ts', import.meta.url), { type: 'module' })
+    worker.onmessage = ({ data }: MessageEvent<Float32Array>) => {
+      worker.terminate()
+      const lines = new THREE.BufferGeometry()
+      lines.setAttribute('position', new THREE.BufferAttribute(data, 3))
+      accept(lines)
+    }
+    worker.onerror = () => {
+      worker.terminate()
+      if (current) inPlace()
+    }
+    // Copies, not the arrays themselves: the hull mesh keeps drawing from its
+    // own, and transferring would empty them.
+    const index = geometry.getIndex()
+    const positionArray = (position.array as Float32Array).slice()
+    const indexArray = index ? (index.array as Uint16Array | Uint32Array).slice() : null
+    worker.postMessage(
+      {
+        position: { array: positionArray, itemSize: position.itemSize, normalized: position.normalized },
+        index: indexArray,
+        angle: EDGE_ANGLE,
+      },
+      indexArray ? [positionArray.buffer, indexArray.buffer] : [positionArray.buffer],
+    )
+
+    return () => {
+      current = false
+      worker.terminate()
+      made?.dispose()
+    }
+  }, [geometry])
+
+  return edges
+}
+
 function Vessel({ still, children }: { still: boolean; children?: ReactNode }) {
   const { scene } = useGLTF(MODEL_URL, DRACO_PATH)
   const motion = useRef<THREE.Group>(null)
@@ -508,10 +580,7 @@ function Vessel({ still, children }: { still: boolean; children?: ReactNode }) {
     return found
   }, [scene])
 
-  const edges = useMemo(
-    () => (geometry ? new THREE.EdgesGeometry(geometry, EDGE_ANGLE) : null),
-    [geometry],
-  )
+  const edges = useEdges(geometry)
 
   // Model origin is at the keel, aft — centre it so the camera orbits
   // amidships rather than swinging the ship around the frame.
@@ -520,10 +589,6 @@ function Vessel({ still, children }: { still: boolean; children?: ReactNode }) {
     geometry.computeBoundingBox()
     return geometry.boundingBox!.getCenter(new THREE.Vector3())
   }, [geometry])
-
-  // EdgesGeometry allocates its own buffers and is not owned by the loader
-  // cache, so nothing else will collect it.
-  useEffect(() => () => edges?.dispose(), [edges])
 
   // Readiness beacon for the tests: the GLB load and edge extraction are the
   // slow, async part of first paint, and nothing else in the DOM says when
@@ -1539,6 +1604,15 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
     const webglOk = hasWebGL()
     setWebgl(webglOk)
 
+    // The model download starts here — after the first paint, and only where
+    // there is a WebGL context to draw it — rather than at module load, where
+    // it used to be. There it began before the intro curtain had painted, and
+    // its 625 KB competed on a slow connection with the fonts and code the
+    // curtain needed to appear; and it was fetched even on machines that then
+    // fell back to the static scene and never used it. The curtain is on
+    // screen for the whole download either way.
+    if (webglOk) useGLTF.preload(MODEL_URL, DRACO_PATH)
+
     // markVesselReady() otherwise only fires from inside the 3D Vessel
     // component, which never mounts here — so without this, the intro
     // curtain (see IntroCurtain.tsx) would never hear that anything is ready
@@ -1625,7 +1699,21 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
   // Not asked yet: the static scene ALONE, and in particular no `intro`. See
   // the note on the webgl state — rendering the heading here, one commit
   // before the real layout exists, is what the curtain would measure against.
-  if (webgl === null) return <HeroSeaScene label={label} />
+  //
+  // Held at a full screen's height. The scene sizes itself to its container,
+  // and with no height here it collapsed to its content — shorter than the
+  // viewport, so for this one commit the footer sat on screen, then was shoved
+  // far down when the real layout replaced it. On a slow phone that commit
+  // paints, and Lighthouse scored the jump as a 1.8 layout shift (0.1 is the
+  // limit for "good"). The intro curtain covers the page throughout, so
+  // nobody sees this frame either way.
+  if (webgl === null) {
+    return (
+      <div className="h-dvh">
+        <HeroSeaScene label={label} />
+      </div>
+    )
+  }
 
   if (!webgl) {
     return (
@@ -1884,5 +1972,3 @@ export function VesselScene({ label, intro }: { label: string; intro?: ReactNode
     </>
   )
 }
-
-useGLTF.preload(MODEL_URL, DRACO_PATH)

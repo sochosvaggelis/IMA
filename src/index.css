@@ -259,7 +259,15 @@
 
 @keyframes ima-intro-rise {
   from {
-    opacity: 0;
+    /* 0.01, not 0 — the difference is invisible on screen but not to the
+       browser. Chrome does not count an element painted at exactly zero
+       opacity as having appeared, and a compositor-run fade does not repaint
+       it, so the curtain's name only registered as painted when its exit
+       touched it, ~2.4s in — and Lighthouse, reading that as the moment the
+       page's main content arrived, charged the whole 3D model download to it
+       (a 7s "largest contentful paint" for text on screen within half a
+       second). */
+    opacity: 0.01;
     transform: translate3d(0, 1.25rem, 0);
   }
   to {
