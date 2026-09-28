@@ -65,10 +65,24 @@ function NotConfigured() {
   return (
     <AuthScreen title="Not connected">
       <p className="text-navy-300 text-sm leading-relaxed">
-        This build of the site has no content backend configured, so there is nothing to sign in to.
-        Set <code className="text-signal-300">VITE_SUPABASE_URL</code> and{' '}
-        <code className="text-signal-300">VITE_SUPABASE_PUBLISHABLE_KEY</code> — see the README.
+        This build of the site was made without the Supabase address and key, so there is nothing to
+        sign in to. They are read when the site is <em>built</em>, not when it runs:
       </p>
+      <ul className="text-navy-300 mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed">
+        <li>
+          <span className="text-white">Live site:</span> repository secrets{' '}
+          <code className="text-signal-300">SUPABASE_URL</code> and{' '}
+          <code className="text-signal-300">SUPABASE_PUBLISHABLE_KEY</code> on GitHub — then run the
+          deploy again.
+        </li>
+        <li>
+          <span className="text-white">On your computer:</span>{' '}
+          <code className="text-signal-300">VITE_SUPABASE_URL</code> and{' '}
+          <code className="text-signal-300">VITE_SUPABASE_PUBLISHABLE_KEY</code> in{' '}
+          <code className="text-signal-300">.env</code> — then restart the dev server.
+        </li>
+      </ul>
+      <p className="text-navy-500 mt-3 text-xs">See the README, “Content &amp; admin panel”.</p>
     </AuthScreen>
   )
 }

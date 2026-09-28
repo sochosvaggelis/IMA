@@ -5,15 +5,20 @@ name: Layout checks
 # run here: its baselines are rendered on Windows, and the same page
 # rasterises differently on this runner's software GL — it is run locally
 # instead, before pushing.
+#
+# ON DEMAND ONLY: Actions → Layout checks → Run workflow. It used to run on
+# every push, alongside the deploy — never blocking it, but taking 10–13
+# minutes each time (the 3D home page renders in software here, at five
+# viewport sizes). Run the same suites locally with `npm test`.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 jobs:
   layout:
     runs-on: ubuntu-latest
+    # A hung browser would otherwise hold the runner for GitHub's six-hour
+    # default.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
