@@ -30,10 +30,20 @@ a subpath — `vite.config.ts` sets `base: '/'`. `App.tsx` still passes
 `import.meta.env.BASE_URL` to the router's `basename`; never hardcode a path
 prefix elsewhere.
 
-Pages has no rewrite rules, so the workflow copies `index.html` to
-`404.html`. Deep links land on the 404 page, the app boots, and React Router
-resolves the URL. It works, but those responses carry a 404 status — worth
-knowing if search ranking ever matters.
+Pages has no rewrite rules, so every page needs a real file behind it, or it
+is answered by `404.html` with a 404 status — which search engines take at
+its word and do not index. The last step of `npm run build`
+(`scripts/prerender-routes.mjs`) therefore writes one HTML file per page and
+language (`services.html`, `el/services.html`, …), each the app shell with
+that page's own title, description, canonical, hreflang and `<html lang>`
+already in it. Pages serves `foo.html` at `/foo` with a 200, so the
+addresses are unchanged, and link previews (which run no JavaScript) show the
+right page. A new route in `src/routes.ts` gets its file automatically, but
+needs a `pageMeta` entry in both dictionaries or the build stops.
+
+The workflow still copies `index.html` to `404.html`, for addresses that
+are not pages: the app boots there and shows its not-found screen, with a
+genuine 404 status.
 
 ## Editing content
 
@@ -179,7 +189,6 @@ layout does not care what renders inside it.
   service, and only then is the "we reply within 2 hours" copy honest.
 - Replace all placeholder content (see above), especially the certifications
   page — claiming class approvals you do not hold is a real problem.
-- Deep links work, but return a 404 status — see "Deployment" above.
 - **The Coverage page's search-result text names the ports.** Its title and
   description in `pageMeta.coverage` (both dictionaries) say "9 Greek
   ports" and list them; they will not follow edits made in the admin panel.

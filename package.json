@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/prerender-routes.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "snapshot": "node --env-file-if-exists=.env scripts/snapshot-content.mjs",
