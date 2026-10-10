@@ -16,6 +16,7 @@ import { ADMIN_ROOT } from '@/routes'
 import { BACKEND } from '@/content/backend'
 import { COLLECTIONS, SPARE_PARTS, type Collection } from './collections'
 import { SessionProvider } from './SessionProvider'
+import { DATABASE_LABEL } from './environment'
 import { RequireAdmin } from './RequireAdmin'
 import { AuthScreen } from './AuthScreen'
 import Login from './pages/Login'
@@ -29,7 +30,8 @@ import Account from './pages/Account'
 function useAdminDocument() {
   useEffect(() => {
     const previous = { title: document.title, lang: document.documentElement.lang }
-    document.title = 'Admin · IMA'
+    // The tab says which database too: two admin tabs look alike otherwise.
+    document.title = DATABASE_LABEL ? `[${DATABASE_LABEL}] Admin · IMA` : 'Admin · IMA'
     document.documentElement.lang = 'en'
     const robots = Object.assign(document.createElement('meta'), {
       name: 'robots',

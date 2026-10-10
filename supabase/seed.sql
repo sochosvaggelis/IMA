@@ -1,0 +1,9 @@
+-- Seed for the LOCAL stack only (npm run db:start / db:reset run it; nothing
+-- here ever reaches the live project).
+--
+-- Intentionally empty. The content the site launched with — projects,
+-- capability groups, certifications, ports — is loaded by the migrations
+-- themselves, so the local database starts with exactly what the live one
+-- did. The local admin login is made by `npm run db:admin`, through the auth
+-- API rather than by writing to auth.users here, whose internal columns change
+-- between Supabase versions.

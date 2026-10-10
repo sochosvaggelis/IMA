@@ -140,6 +140,36 @@ visitor ──GET published rows──►  Supabase  ◄──sign in, edit, upl
    `SUPABASE_PUBLISHABLE_KEY` for the deploy.
 7. Push. The next deploy takes a fresh snapshot, and `/admin` is live.
 
+### Local database (for development)
+
+`npm run dev` can run against a complete Supabase on your own machine —
+database, logins, photo storage — so testing never touches the live site.
+It needs **Docker Desktop** (on Windows, first `wsl --install` in an
+administrator PowerShell, restart, then install Docker Desktop).
+
+```bash
+npm run db:start   # start the local stack; applies every migration
+npm run db:admin   # local admin login + .env.development.local
+npm run dev        # restart it; the admin now shows a "LOCAL DB" badge
+```
+
+- `db:admin` creates `admin@ima.local` / `local-admin` (or pass your own:
+  `npm run db:admin -- you@example.com secret`) and writes
+  `.env.development.local`, which Vite uses for `npm run dev` only — builds
+  and `npm run snapshot` keep reading `.env`, the live database.
+- Local dashboard: http://127.0.0.1:54323 · caught emails (password
+  resets): http://127.0.0.1:54324
+- `npm run db:reset` wipes the local data and re-runs the migrations;
+  `npm run db:stop` stops the stack. Delete `.env.development.local` to
+  point `npm run dev` back at the live database.
+- The CLI runs through npx, pinned in `package.json`'s `db:*` scripts, so
+  the deploy never downloads it. Its settings are `supabase/config.toml`;
+  nothing in there is ever sent to the live project.
+
+A second free Supabase project works as a test database too: put its URL
+and key in `.env.development.local`, with `VITE_SUPABASE_LABEL=Test DB` so
+the admin panel shows the badge (a local address is detected by itself).
+
 ### Making more of the site editable
 
 The admin screens are generic — they render whatever

@@ -31,6 +31,13 @@ interface ImportMetaEnv {
    * logged-in admin may do. Never put the secret / service_role key here.
    */
   readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string
+
+  /**
+   * Optional warning shown in the admin panel's header, e.g. "Test DB" — for
+   * pointing the dev server at a remote test project. A local stack is
+   * detected by its address and needs no label. See src/admin/environment.ts.
+   */
+  readonly VITE_SUPABASE_LABEL?: string
 }
 
 interface ImportMeta {
