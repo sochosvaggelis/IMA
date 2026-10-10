@@ -1,4 +1,3 @@
-import * as THREE from 'three'
 import {
   AutomationControl,
   CargoSystems,
@@ -10,6 +9,12 @@ import {
   PowerGeneration,
   SafetySystems,
 } from './diagrams'
+import { smoothstep } from '@/lib/math'
+
+/** A point in model space. A plain tuple rather than a THREE.Vector3, so the
+    diagrams and the mobile feed can use this file without loading three.js;
+    the 3D scene turns them into vectors where it needs them. */
+export type Vec3 = [x: number, y: number, z: number]
 
 /**
  * The nine systems, each tying together three things: WHERE it lives on the
@@ -60,7 +65,7 @@ export type SystemSpec = {
   title: string
   blurb: string
   /** Where the marker and its label sit on the vessel. */
-  anchor: THREE.Vector3
+  anchor: Vec3
   /**
    * Where the camera looks, when that should differ from the marker.
    *
@@ -72,14 +77,14 @@ export type SystemSpec = {
    * NOTE: it is these values — not the anchors — that must increase
    * monotonically, since this is what the camera actually walks along.
    */
-  focus?: THREE.Vector3
+  focus?: Vec3
   /** Scroll position, 0..1, where this system is fully shown. */
   at: number
   Diagram: () => React.ReactElement
 }
 
 /** Camera target for a system: its own if given, otherwise its marker. */
-export function focusOf(spec: SystemSpec): THREE.Vector3 {
+export function focusOf(spec: SystemSpec): Vec3 {
   return spec.focus ?? spec.anchor
 }
 
@@ -91,13 +96,13 @@ export const SYSTEMS: SystemSpec[] = [
       'Diesel generator sets, automatic voltage regulation, synchronising and load sharing, preferential tripping and emergency changeover.',
     // Generator flat in the engine room: below the main deck (-3) but above
     // the waterline (-9), aft where the machinery space sits.
-    anchor: new THREE.Vector3(-44, -7, 0),
+    anchor: [-44, -7, 0],
     // Lifted clear of the marker so the shot is not looking up from below the
     // waterline, and slid along screen-right to push the vessel further left
     // in frame. At 67deg off the beam that direction is ~92% Z, so the shift
     // rides on Z: putting it on X would run past the next system and make the
     // camera double back.
-    focus: new THREE.Vector3(-44, -3, 8),
+    focus: [-44, -3, 8],
     at: 0.1,
     Diagram: PowerGeneration,
   },
@@ -108,13 +113,13 @@ export const SYSTEMS: SystemSpec[] = [
       'Group starter panels for purifiers, compressors, boiler and ventilation, earth-fault monitoring, shaft earthing and insulation records.',
     // Auxiliaries — purifiers, compressors, boiler — on the engine room side
     // flats, so offset off the centreline.
-    anchor: new THREE.Vector3(-42, -6, -3),
+    anchor: [-42, -6, -3],
     // Lifted, and shifted toward screen-right. The shift is carried on Z
     // rather than X because at this point in the sweep the camera is still
     // about 49deg off the beam, so +Z is most of what "right" means on screen
     // — and moving X here would push past the next system and make the camera
     // double back.
-    focus: new THREE.Vector3(-42, -2, 2),
+    focus: [-42, -2, 2],
     at: 0.2,
     Diagram: EngineRoomElectrical,
   },
@@ -125,7 +130,7 @@ export const SYSTEMS: SystemSpec[] = [
       'Main and emergency switchboards, feeder coordination, transformers for 220V services, insulation monitoring and selective protection.',
     // Main switchboard lives in the engine control room — top engine room
     // flat, just under the main deck, offset to one side as it usually is.
-    anchor: new THREE.Vector3(-40, -4, 3),
+    anchor: [-40, -4, 3],
     at: 0.3,
     Diagram: PowerDistribution,
   },
@@ -136,7 +141,7 @@ export const SYSTEMS: SystemSpec[] = [
       'PLC and UMS systems, field instrumentation, loop tuning, alarm and monitoring extension to the bridge, watchcall and event logging.',
     // UMS consoles share the engine control room with the switchboard, a deck
     // higher — at main deck level in the lowest tier of the accommodation.
-    anchor: new THREE.Vector3(-39, -1, 3),
+    anchor: [-39, -1, 3],
     at: 0.4,
     Diagram: AutomationControl,
   },
@@ -148,10 +153,10 @@ export const SYSTEMS: SystemSpec[] = [
     // Marker moved forward along the block so it and its label sit further
     // right on screen. The camera is beam-on by this point, so +X is exactly
     // screen-right.
-    anchor: new THREE.Vector3(-33, 4, 0),
+    anchor: [-33, 4, 0],
     // Camera deliberately left where it was — this is the marker moving, not
     // the shot.
-    focus: new THREE.Vector3(-38, 4, 0),
+    focus: [-38, 4, 0],
     at: 0.5,
     Diagram: LightingAccommodation,
   },
@@ -161,7 +166,7 @@ export const SYSTEMS: SystemSpec[] = [
     blurb:
       'Radar, GNSS, AIS, VDR and GMDSS installations, gyro and autopilot interfacing, redundant supplies and annual radio survey support.',
     // Wheelhouse at the top of the block, with the radar mast above it.
-    anchor: new THREE.Vector3(-37, 9, 0),
+    anchor: [-37, 9, 0],
     at: 0.6,
     Diagram: NavigationComms,
   },
@@ -172,7 +177,7 @@ export const SYSTEMS: SystemSpec[] = [
       'Addressable fire detection loops, general alarm, emergency stops for fuel and ventilation, bilge alarms and emergency lighting integrity.',
     // Fire control station and muster point: on the main deck immediately
     // forward of the accommodation, which is where they are on this ship type.
-    anchor: new THREE.Vector3(-28, -3, 0),
+    anchor: [-28, -3, 0],
     at: 0.7,
     Diagram: SafetySystems,
   },
@@ -183,7 +188,7 @@ export const SYSTEMS: SystemSpec[] = [
       'Deck ring main, crane and hatch cover drives, hold ventilation and bilge monitoring, cargo console instrumentation.',
     // A deck crane pedestal amidships. Cranes on a geared bulk carrier stand
     // on the centreline between hatches, which is why Z is 0.
-    anchor: new THREE.Vector3(12, 2, 0),
+    anchor: [12, 2, 0],
     at: 0.8,
     Diagram: CargoSystems,
   },
@@ -194,7 +199,7 @@ export const SYSTEMS: SystemSpec[] = [
       'Starters from direct-on-line to frequency converters, overload and phase-failure protection, alignment, rewinding and bearing condition work.',
     // Bow thruster room, forward and below the waterline (-9) — the largest
     // single motor on the ship and the one furthest from the switchboard.
-    anchor: new THREE.Vector3(44, -8, 0),
+    anchor: [44, -8, 0],
     at: 0.9,
     Diagram: MotorsAndDrives,
   },
@@ -214,8 +219,8 @@ const FADE = 0.03
  */
 export function systemActivity(p: number, at: number): number {
   return (
-    THREE.MathUtils.smoothstep(p, at - HALF, at - HALF + FADE) *
-    (1 - THREE.MathUtils.smoothstep(p, at + HALF - FADE, at + HALF))
+    smoothstep(p, at - HALF, at - HALF + FADE) *
+    (1 - smoothstep(p, at + HALF - FADE, at + HALF))
   )
 }
 
@@ -232,40 +237,7 @@ const INTRO_HOLD = 0.012
 const INTRO_GONE = 0.045
 
 export function introActivity(p: number): number {
-  return 1 - THREE.MathUtils.smoothstep(p, INTRO_HOLD, INTRO_GONE)
-}
-
-/** Where the camera looks before the first system takes over. Amidships, so
-    the opening frame is composed on the whole vessel rather than on a detail. */
-const OPENING_FOCUS = new THREE.Vector3(0, 0, 0)
-
-/**
- * The point on the vessel the camera should be looking at, for this scroll
- * position — a path running amidships → system 01 → 02 → … → 09.
- *
- * Each leg eases with smoothstep, so the camera SETTLES on a system at its
- * scroll centre rather than sweeping past it. That is what ties the camera to
- * the annotation: when a node is fully lit, the camera is exactly on it.
- *
- * Writes into `out` rather than returning a new vector — this runs every
- * frame, and allocating a Vector3 per frame is how you get GC sawtooth in an
- * otherwise smooth animation.
- */
-export function focusTarget(p: number, out: THREE.Vector3): THREE.Vector3 {
-  const first = SYSTEMS[0]
-  if (p <= first.at) {
-    return out.copy(OPENING_FOCUS).lerp(focusOf(first), THREE.MathUtils.smoothstep(p, 0, first.at))
-  }
-
-  for (let i = 0; i < SYSTEMS.length - 1; i++) {
-    const a = SYSTEMS[i]
-    const b = SYSTEMS[i + 1]
-    if (p <= b.at) {
-      return out.copy(focusOf(a)).lerp(focusOf(b), THREE.MathUtils.smoothstep(p, a.at, b.at))
-    }
-  }
-
-  return out.copy(focusOf(SYSTEMS[SYSTEMS.length - 1]))
+  return 1 - smoothstep(p, INTRO_HOLD, INTRO_GONE)
 }
 
 /** The system most present right now, and by how much. */

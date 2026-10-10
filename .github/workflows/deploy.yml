@@ -62,11 +62,8 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
 
-      # Every real page already has its own file (npm run build writes them —
-      # see scripts/prerender-routes.mjs). This is for everything else: the
-      # app shell as the 404 page, so a mistyped address still boots the app
-      # and shows its not-found screen, with an honest 404 status.
-      - run: cp dist/index.html dist/404.html
+      # npm run build has also written one file per page, plus 404.html for
+      # every other address (see scripts/prerender-routes.mjs).
 
       - uses: actions/upload-pages-artifact@v3
         with:

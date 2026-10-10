@@ -1,9 +1,10 @@
-import { Suspense, lazy } from 'react'
+import { Suspense } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { LanguageProvider } from '@/i18n/LanguageProvider'
 import type { Language } from '@/i18n/context'
 import { EL_PREFIX } from '@/i18n/localePath'
 import { Layout } from '@/components/layout/Layout'
+import { Admin, NotFound, PAGES } from '@/lazyPages'
 import { ADMIN_ROOT, ROUTES } from '@/routes'
 
 /**
@@ -15,26 +16,12 @@ import { ADMIN_ROOT, ROUTES } from '@/routes'
  * /contact to report a breakdown. Splitting it means that page fetches the
  * layout and its own form, and nothing else.
  *
- * The cost is one extra round trip before the home hero's intro curtain can
- * start. If that ever feels too slow, make Home a plain static import again —
- * but note that puts three.js back into every page's critical path.
- *
- * The Suspense boundary these need lives in Layout, around the Outlet, so the
- * header and footer stay put while a route's chunk arrives.
+ * The lazy components live in lazyPages.ts, which also lets main.tsx load the
+ * current page before the first render, so a fresh load never paints the
+ * empty fallback. The Suspense boundary is still needed for client-side
+ * navigation: it lives in Layout, around the Outlet, so the header and footer
+ * stay put while the next route's chunk arrives.
  */
-const Home = lazy(() => import('@/pages/Home'))
-const Services = lazy(() => import('@/pages/Services'))
-const Capabilities = lazy(() => import('@/pages/Capabilities'))
-const Projects = lazy(() => import('@/pages/Projects'))
-const SpareParts = lazy(() => import('@/pages/SpareParts'))
-const Certifications = lazy(() => import('@/pages/Certifications'))
-const Coverage = lazy(() => import('@/pages/Coverage'))
-const Contact = lazy(() => import('@/pages/Contact'))
-const Privacy = lazy(() => import('@/pages/Privacy'))
-const NotFound = lazy(() => import('@/pages/NotFound'))
-
-/** The admin panel, with supabase-js inside it — a chunk no visitor loads. */
-const Admin = lazy(() => import('@/admin/AdminApp'))
 
 /** ROUTES holds absolute paths ('/services'); nested routes want them relative. */
 const rel = (path: string) => path.slice(1)
@@ -51,15 +38,15 @@ function LocalisedRoutes({ lang }: { lang: Language }) {
     <LanguageProvider lang={lang}>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Home />} />
-          <Route path={rel(ROUTES.services)} element={<Services />} />
-          <Route path={rel(ROUTES.capabilities)} element={<Capabilities />} />
-          <Route path={rel(ROUTES.projects)} element={<Projects />} />
-          <Route path={rel(ROUTES.spareParts)} element={<SpareParts />} />
-          <Route path={rel(ROUTES.certifications)} element={<Certifications />} />
-          <Route path={rel(ROUTES.coverage)} element={<Coverage />} />
-          <Route path={rel(ROUTES.contact)} element={<Contact />} />
-          <Route path={rel(ROUTES.privacy)} element={<Privacy />} />
+          <Route index element={<PAGES.home />} />
+          <Route path={rel(ROUTES.services)} element={<PAGES.services />} />
+          <Route path={rel(ROUTES.capabilities)} element={<PAGES.capabilities />} />
+          <Route path={rel(ROUTES.projects)} element={<PAGES.projects />} />
+          <Route path={rel(ROUTES.spareParts)} element={<PAGES.spareParts />} />
+          <Route path={rel(ROUTES.certifications)} element={<PAGES.certifications />} />
+          <Route path={rel(ROUTES.coverage)} element={<PAGES.coverage />} />
+          <Route path={rel(ROUTES.contact)} element={<PAGES.contact />} />
+          <Route path={rel(ROUTES.privacy)} element={<PAGES.privacy />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

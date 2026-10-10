@@ -16,13 +16,19 @@
  * dictionaries, so the two cannot disagree. GitHub Pages serves foo.html at
  * /foo with a 200, so the addresses stay exactly as they are.
  *
- * Unknown addresses still get 404.html (copied in the deploy workflow), and
- * a genuine 404 status.
+ * Each file also names what its page needs before it can draw: the page's
+ * own chunk (routes are lazy — see src/lazyPages.ts) and the Inter faces for
+ * its language. Without that, the browser discovers them only once the main
+ * bundle has run, one round trip later. The chunk names come from Vite's
+ * build manifest, which is deleted afterwards — it is not a page.
+ *
+ * Unknown addresses get 404.html, written here too, with the not-found
+ * page's chunk rather than the home page's, and a genuine 404 status.
  *
  * Imports the dictionaries and routes straight from src/ — they are plain
  * TypeScript with nothing but erasable syntax, which Node strips itself.
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { el } from '../src/i18n/dictionaries/el.ts'
@@ -35,6 +41,56 @@ const LOCALES = { en: 'en_US', el: 'el_GR' }
 
 /** The site's address, from the same CNAME file that tells Pages the domain. */
 const ORIGIN = `https://${(await readFile(new URL('../public/CNAME', import.meta.url), 'utf8')).trim()}`
+
+const MANIFEST_DIR = new URL('.vite/', DIST)
+const manifest = JSON.parse(await readFile(new URL('manifest.json', MANIFEST_DIR), 'utf8'))
+
+/** A manifest entry by its source file, or stops the build. */
+function entry(source) {
+  const found = manifest[source]
+  if (!found) throw new Error(`prerender: ${source} is not in the Vite manifest`)
+  return found
+}
+
+/** The source file behind each route key: home -> src/pages/Home.tsx. */
+const pageSource = (key) => `src/pages/${key[0].toUpperCase()}${key.slice(1)}.tsx`
+
+/** Inter faces to fetch up front. Greek pages still set the company name,
+    figures and units in Latin, so they want both. */
+const FONTS = {
+  en: ['src/assets/fonts/inter-latin.woff2'],
+  el: ['src/assets/fonts/inter-latin.woff2', 'src/assets/fonts/inter-greek.woff2'],
+}
+
+/** Faces only some pages need up front. The home page's intro curtain sets
+    the company name in JetBrains Mono, and that name is the largest thing on
+    the first screen — the paint Lighthouse times the page by. Its Latin
+    letters cover the name in both languages. */
+const PAGE_FONTS = {
+  home: ['src/assets/fonts/jetbrains-mono-latin.woff2'],
+}
+
+/** <link>s for a page's chunk, everything it imports, and the language's
+    fonts. Anything the template already loads is left out. */
+function preloadsFor(template, source, lang, key) {
+  const chunks = new Set()
+  const visit = (id) => {
+    const { file, imports = [] } = entry(id)
+    if (chunks.has(file)) return
+    chunks.add(file)
+    imports.forEach(visit)
+  }
+  visit(source)
+  const scripts = [...chunks]
+    .filter((file) => !template.includes(`/${file}"`))
+    .map((file) => `<link rel="modulepreload" crossorigin href="/${file}">`)
+  const fonts = [...FONTS[lang], ...(PAGE_FONTS[key] ?? [])].map(
+    (font) => `<link rel="preload" as="font" type="font/woff2" crossorigin href="/${entry(font).file}">`,
+  )
+  return [...scripts, ...fonts].join('\n    ')
+}
+
+const withPreloads = (html, links) => replaceOnce(html, /\s*<\/head>/, `\n    ${links}\n  </head>`, '</head>')
 
 /** Same scheme as src/i18n/localePath.ts: English bare, Greek under /el. */
 const localePath = (lang, path) => (lang === 'en' ? path : path === '/' ? '/el' : `/el${path}`)
@@ -97,7 +153,7 @@ function pageFor(template, lang, key, path) {
     `<meta property="og:description" content="${escape(description)}" />`,
     'og:description',
   )
-  return html
+  return withPreloads(html, preloadsFor(template, pageSource(key), lang, key))
 }
 
 const template = await readFile(new URL('index.html', DIST), 'utf8')
@@ -114,5 +170,12 @@ for (const [key, path] of Object.entries(ROUTES)) {
     }
   }
 }
+
+// The not-found page for every other address: the template's defaults, the
+// not-found chunk. English fonts — the address carries no reliable language.
+await writeFile(new URL('404.html', DIST), withPreloads(template, preloadsFor(template, 'src/pages/NotFound.tsx', 'en')))
+written++
+
+await rm(MANIFEST_DIR, { recursive: true })
 
 console.log(`prerender: ${written} pages written for ${Object.keys(ROUTES).length} routes × 2 languages`)

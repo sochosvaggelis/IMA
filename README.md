@@ -41,9 +41,13 @@ addresses are unchanged, and link previews (which run no JavaScript) show the
 right page. A new route in `src/routes.ts` gets its file automatically, but
 needs a `pageMeta` entry in both dictionaries or the build stops.
 
-The workflow still copies `index.html` to `404.html`, for addresses that
-are not pages: the app boots there and shows its not-found screen, with a
-genuine 404 status.
+Each file also preloads its own page's chunk and Inter faces, and `main.tsx`
+waits for that chunk before the first render (`src/lazyPages.ts`), so a
+fresh load paints the whole page at once instead of the header and footer
+around an empty middle.
+
+The same script writes `404.html`, for addresses that are not pages: the
+app boots there and shows its not-found screen, with a genuine 404 status.
 
 ## Editing content
 

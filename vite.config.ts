@@ -13,6 +13,12 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
+  build: {
+    // Read by scripts/prerender-routes.mjs to find each page's chunks, so
+    // every page's HTML can start downloading its own code straight away.
+    // The script deletes it afterwards: it is a build input, not a page.
+    manifest: true,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
